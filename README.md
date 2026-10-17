@@ -55,15 +55,15 @@ as a placeholder — nothing is faked to look more finished than it is.
 
 | Domain | What it does |
 |---|---|
-| 🆘 **Emergency** | One-tap `tel:112` access plus the most relevant emergency helplines |
-| 📞 **Helplines** | Searchable, filterable directory of verified national and state helplines, each with a source and verification date |
-| 📝 **Report Center** | Guided reporting flows for cybercrime, financial fraud, and women's safety — what to do, who to contact, what evidence to keep |
-| ✈️ **Travel Safety** | Route comparison, destination check-in with ETA, live guardian tracking, and location sharing with expiring links |
-| 👥 **Guardian** | A read-only, token-gated view a trusted contact opens to follow a journey |
-| 🌐 **Community** | Community-submitted safety observations plotted on a safety map, moderation-ready |
-| 🗂️ **Evidence Organizer** | On-device notes, files, and a timeline for an incident, exportable |
-| 🐱 **Mewvi** | A context-aware assistant present on every page — rule-based by default, optionally sharpened by Gemini, and never a general-purpose chatbot |
-| 🌓 **Theming** | Light, dark, and system modes with persisted preference |
+|  **Emergency** | One-tap `tel:112` access plus the most relevant emergency helplines |
+|  **Helplines** | Searchable, filterable directory of verified national and state helplines, each with a source and verification date |
+|  **Report Center** | Guided reporting flows for cybercrime, financial fraud, and women's safety — what to do, who to contact, what evidence to keep |
+|  **Travel Safety** | Route comparison, destination check-in with ETA, live guardian tracking, and location sharing with expiring links |
+|  **Guardian** | A read-only, token-gated view a trusted contact opens to follow a journey |
+|  **Community** | Community-submitted safety observations plotted on a safety map, moderation-ready |
+|  **Evidence Organizer** | On-device notes, files, and a timeline for an incident, exportable |
+|  **Mewvi** | A context-aware assistant present on every page — rule-based by default, optionally sharpened by Gemini, and never a general-purpose chatbot |
+|  **Theming** | Light, dark, and system modes with persisted preference |
 
 ## Tech stack
 
