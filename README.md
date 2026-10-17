@@ -17,7 +17,7 @@
   A single, connected safety ecosystem for India — emergency help, verified
   helplines, incident reporting, travel safety, community reports, and a
   floating assistant called <b>Mewvi</b> — built as one Next.js app with a
-  proper page for every feature, not one giant scrolling screen.
+  proper page for every feature, not one giant scrolling screen. 
 </p>
 
 ---
