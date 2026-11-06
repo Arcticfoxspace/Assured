@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, ArrowRight, ExternalLink, Info, Loader2, MapPin, Navigation, Phone, Send, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Copy, ExternalLink, Info, Loader2, MapPin, Navigation, Phone, RotateCw, Send, X } from "lucide-react";
 import { api, getCurrentFix, useSaved } from "@/lib/travel/client";
 import { askMewvi } from "@/lib/mewvi/client";
 import { contextSuggestions, pageContext } from "@/lib/mewvi/context";
@@ -133,6 +133,35 @@ function HelplineCards({ items }: { items: HelplineRef[] }) {
   );
 }
 
+/** A prepared message or report. Mewvi never sends it: the person copies it, edits it and sends it themselves. */
+function DraftCard({ title, body, note }: { title: string; body: string; note?: string }) {
+  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(body);
+      setCopied("yes");
+    } catch {
+      setCopied("no");
+    }
+  }
+  return (
+    <div className="rounded-xl border border-border bg-background p-3">
+      <p className="text-sm font-semibold">{title}</p>
+      <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-surface-2/60 p-2.5 font-sans text-sm" tabIndex={0} aria-label={`${title} (draft text)`}>
+        {body}
+      </pre>
+      {note && <p className="mt-2 text-xs text-muted">{note}</p>}
+      <div className="mt-2 flex items-center gap-2">
+        <button type="button" onClick={copy} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm hover:bg-surface-2">
+          {copied === "yes" ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+          {copied === "yes" ? "Copied" : "Copy text"}
+        </button>
+        {copied === "no" && <span role="status" className="text-xs text-muted">Couldn&apos;t copy here — select the text above and copy it.</span>}
+      </div>
+    </div>
+  );
+}
+
 function BlockView({ b, onNavigate }: { b: Block; onNavigate: () => void }) {
   switch (b.type) {
     case "text":
@@ -202,6 +231,8 @@ function BlockView({ b, onNavigate }: { b: Block; onNavigate: () => void }) {
           ))}
         </ul>
       );
+    case "draft":
+      return <DraftCard title={b.title} body={b.body} note={b.note} />;
     case "path":
       return (
         <div>
@@ -300,46 +331,53 @@ export function MewviPanel({
   }, []);
   useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [turns, busy]);
 
-  async function send(raw: string) {
+  /** `retry` re-asks the last question in place (no duplicate user bubble) after an unavailable/offline answer. */
+  async function send(raw: string, retry = false) {
     const message = raw.trim().slice(0, 500);
     if (!message || busy) return;
     setValue("");
-    setTurns((t) => [...t, { id: newId(), role: "user", text: message }]);
+    if (retry) setTurns((t) => (t[t.length - 1]?.role === "mewvi" ? t.slice(0, -1) : t));
+    else setTurns((t) => [...t, { id: newId(), role: "user", text: message }]);
     setBusy(true);
-
-    // Mewvi just asked "tell me your area" — treat this message as that place,
-    // unless it clearly reads as an unrelated request instead (danger, a
-    // different tool, etc.), in which case fall through to a normal answer.
-    if (pendingCategory) {
-      const category = pendingCategory;
-      setPendingCategory(null);
-      if (classify(message, domain).confidence < 0.6) {
-        await runLocationText(message, category);
-        setBusy(false);
-        return;
+    try {
+      // Mewvi just asked "tell me your area" — treat this message as that place,
+      // unless it clearly reads as an unrelated request instead (danger, a
+      // different tool, etc.), in which case fall through to a normal answer.
+      if (pendingCategory) {
+        const category = pendingCategory;
+        setPendingCategory(null);
+        if (classify(message, domain).confidence < 0.6) {
+          await runLocationText(message, category);
+          return;
+        }
       }
-    }
 
-    const reply = await askMewvi({ message, pathname, activeJourney });
+      const reply = await askMewvi({ message, pathname, activeJourney });
 
-    if (reply.intent === "find_nearby_help") {
-      const category = detectNearbyCategory(message);
-      if (category) {
-        setTurns((t) => [...t, { id: newId(), role: "mewvi", reply: lookingReply(category) }]);
-        await runGeolocation(category);
-        setBusy(false);
-        return;
+      if (reply.intent === "find_nearby_help") {
+        const category = detectNearbyCategory(message);
+        if (category) {
+          setTurns((t) => [...t, { id: newId(), role: "mewvi", reply: lookingReply(category) }]);
+          await runGeolocation(category);
+          return;
+        }
       }
-    }
 
-    setTurns((t) => [...t, { id: newId(), role: "mewvi", reply }]);
-    setBusy(false);
+      setTurns((t) => [...t, { id: newId(), role: "mewvi", reply }]);
+    } catch {
+      // Nothing above should throw, but if it does the panel must stay usable and the page must not crash.
+      setTurns((t) => [...t, { id: newId(), role: "mewvi", reply: errorReply("Something went wrong on my side. Please try again. If you need help now, open the Emergency page.") }]);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const dismiss = (turnId: string, confId: string) =>
     setTurns((all) => all.map((t) => (t.id === turnId ? { ...t, dismissed: [...(t.dismissed ?? []), confId] } : t)));
 
   const lastMewvi = [...turns].reverse().find((t) => t.role === "mewvi");
+  const lastUser = [...turns].reverse().find((t) => t.role === "user");
+  const needsRetry = Boolean(lastMewvi?.reply && (lastMewvi.reply.offline || lastMewvi.reply.ai === "invalid_key" || lastMewvi.reply.ai === "rate_limited" || lastMewvi.reply.ai === "unavailable"));
 
   return (
     <>
@@ -406,6 +444,16 @@ export function MewviPanel({
                   {!t.reply.offline && (t.reply.ai === "invalid_key" || t.reply.ai === "rate_limited" || t.reply.ai === "unavailable") && (
                     <p className="text-[11px] text-muted">Smart matching is unavailable right now, so I used my built-in matching.</p>
                   )}
+                  {t === lastMewvi && needsRetry && !busy && lastUser?.text && (
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                      <button type="button" onClick={() => void send(lastUser.text ?? "", true)} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 hover:bg-surface-2">
+                        <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                        Try again
+                      </button>
+                      <Link href="/emergency" onClick={onClose} className="underline underline-offset-2">Emergency page</Link>
+                      <Link href="/helplines" onClick={onClose} className="underline underline-offset-2">Helplines</Link>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null
@@ -455,7 +503,12 @@ export function MewviPanel({
             <Send className="h-4 w-4" aria-hidden="true" />
           </button>
         </form>
-        <p className="px-4 pb-3 pt-2 text-[11px] leading-snug text-muted">{DISCLAIMER}</p>
+        <p className="px-4 pb-3 pt-2 text-[11px] leading-snug text-muted">
+          {DISCLAIMER}{" "}
+          <Link href="/emergency" onClick={onClose} className="font-medium underline underline-offset-2">
+            In danger? Open the Emergency page.
+          </Link>
+        </p>
       </div>
     </>
   );

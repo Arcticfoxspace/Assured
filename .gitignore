@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# secrets: never commit real environment files (the example file is the exception)
+.env
+.env.*
+!.env.example
+
+# TypeScript incremental build cache (regenerated automatically)
+*.tsbuildinfo
+
+# Vercel local link
+.vercel
+
+# test / tooling output
+coverage/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

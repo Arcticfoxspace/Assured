@@ -22,6 +22,38 @@ export interface Classification extends Nlu {
 const SELF_HARM =
   /\b(suicid\w*|kill myself|end my life|end it all|want to die|wanna die|hurt myself|harm myself|self ?harm\w*|no reason to live|don'?t want to live|can'?t go on)\b/;
 
+// Hinglish (romanised Hindi) pleas. Matched on normalised text (accents and case already folded).
+// NOT yet reviewed by a native Hindi/Hinglish speaker: review before launch (see docs/U1_HINGLISH_DANGER.md).
+// Over-matching is the safe side here (it shows the 112 flow); missing a plea is not.
+const HINGLISH_SELF_HARM =
+  /\b(?:mar(?:na|ne|\s?jana|\s?jaun[gi]?|\s?jau)\s+(?:chah\w*|hai|mann)|marne ka (?:mann|man|dil)|jeena nahi chah\w*|jeene ka (?:mann|man|dil) nahi|jeene ki (?:iccha|ichha) nahi|zindagi (?:khatam|se thak|nahi jeen\w*)|jaan de (?:dun|doon|dena)|apni jaan|khud ?kh?ushi|khud ?kushi|atmahatya|aatmahatya|aatm ?hatya|sab khatam kar|marne ke liye|mar\s?ja(?:un|aun|oon)|khud ko (?:khatam|maar)|goli(?:yan)? kha (?:li|liya|lunga|lungi)|jeene ki (?:koi )?wajah|koi wajah nahi jeene|nahi jee (?:sakta|sakti|paunga|paungi)|jeene ka koi (?:fayda|matlab|mtlb|point) nahi|mar\s?jaung[ai])\b/;
+const HINGLISH_DANGER: RegExp[] = [
+  /\b(?:bachao|bachaao|bachaoo+|bacha lo|bachalo|bachayiye|bachaiye|mujhe bacha(?!ya\b|yi\b|ye\b|aya\b)\w*)\b/,
+  /\b(?:meri madad karo|madad karo|madad kijiye|help karo|jaldi madad|turant madad)\b/,
+  /\b(?:maar|maarne|maarna|maarenge|maardega|maar dega|maar dalega|maar dalenge|maar rahe|maar raha|maar rahi|peet raha|peet rahe|peet rahi|pit raha|pit rahe)\b.{0,25}\b(?:hai|hain|hu|hun|hoon|wala|wale|rahe|raha|rahi|dega|denge|dalega|dalenge|mujhe|humein|hume)\b/,
+  /\b(?:mujhe|hume|humein|mere? (?:ko|saath))\b.{0,20}\b(?:maar|peet|kidnap|pakad|chhed|ched|dhamk|utha)\w*\b/,
+  /\b(?:jaan se maar\w*|utha (?:ke|kar) le (?:ja|gaye|gaya)\w*|zabardasti|chhed ?chhad|ched ?chad|balatkar)\b/,
+  /\b(?:koi|woh|wo|vo|log|aadmi|ladke|gunde)\b.{0,20}\b(?:mere?|meri|mujhe|mera)\b.{0,15}\b(?:peeche|pichhe|pichhe pad|piche)\b/,
+  /\b(?:chaku|chakku|bandook|pistol|talwar|knife|gun|hathiyar|acid)\b.{0,20}\b(?:hai|liye|dikha\w*|nikal\w*|phek\w*)\b/,
+  /\b(?:pee?cha|pichha|picha|pee?che|pichhe|piche)\b.{0,20}\b(?:kar|lag|pad)\w*\b/,
+  /\b(?:follow|stalk)\s?(?:kar|ker)\w*\b/,
+  /\b(?:jaan khatre|gher (?:liya|rakha|rahe))\w*\b/,
+  /\brape\b.{0,15}\b(?:ho raha|ho rahi|kar raha|kar rahe)\b/,  // U1c (session 5)
+  /\b(?:chor|chore|daku|badmash|gunde|gunda)\b.{0,20}\b(?:ghus|ghuse|ghusa|ghusna)\w*\b/,
+  /\bpolice (?:ko )?(?:bula\w*|call kar\w*)\b/,
+  /\bmadad chahiye\b.{0,15}\b(?:jaldi|abhi|turant|urgent)\b/,
+  /\bkhoon (?:beh|bah|nikal)\w*\b|\bbehosh\b/,
+  /\bgalat (?:tarike|tareeke|tarah) se (?:chhu|chhoo|choo|chu)\w*\b/,
+];
+// Devanagari pleas. normalize() erases non-Latin letters, so these run on the raw text.
+// Tested on raw text after NFD + nukta removal (see devanagari()), so patterns carry no nukta (ज़ -> ज).
+const DEVANAGARI_SELF_HARM =
+  /(?:मरना चाह|मर जाना चाह|मर जा[ऊउ][ंँ]?|जीना नहीं चाह|जीने का मन नहीं|जीने की (?:वजह|इच्छा)|आत्महत्या|खुदकुशी|खुदकशी|खुद को (?:खत्म|मार)|जि[ंन]्?दगी (?:खत्म|से थक)|जान दे |जान ले ?लू|जीने का (?:कोई )?(?:मतलब|फायदा) नहीं)/;
+const DEVANAGARI_DANGER =
+  /(?:बचाओ|बचा लो|बचा लीजिए|मदद करो|मदद कीजिए|मदद चाहिए|मेरी मदद|मार रहा|मार रहे|मार रही|मुझे मार|मार (?:देगा|दूं|डाल)|मारने|जान से मार|जान खतरे|अपहरण|किडनैप|बलात्कार|छेड़|छेड|चाकू|बंदूक|पीछा कर|पीछे .{0,12}पड|पीट रहा|पीट रही|पीट रहे|धमक|उठा (?:ले|कर|रहा|रहे)|पुलिस (?:को )?बुला|घेर लिया)/;
+/** Raw text folded so precomposed (ज़) and decomposed (ज + nukta) input both match; normalize() drops non-Latin. */
+const devanagari = (raw: string) => raw.normalize("NFD").replace(/\u093C/g, "").normalize("NFC");
+
 const STRONG_DANGER: RegExp[] = [
   // "help me" is danger unless it is clearly a request for help *using the app*.
   /\b(?:help me|save me|help help)\b(?! (?:to )?(?:find|use|with|understand|report|file|choose|pick|learn|know|figure|set|start|track|organi[sz]e|check|write|create|navigate|locate|open|call|contact)\b)/,
@@ -49,8 +81,12 @@ const PRESENT = /\b(now|right now|currently|still|at this moment|as we speak|hap
 const MEDICAL = /\b(medical emergency|heart attack|unconscious|not breathing|overdos\w*|bleeding|injured|accident)\b/;
 export const isMedical = (n: string) => MEDICAL.test(n);
 
-export function detectDanger(n: string): DangerKind | undefined {
-  if (SELF_HARM.test(n)) return "self-harm";
+export function detectDanger(n: string, raw?: string): DangerKind | undefined {
+  if (SELF_HARM.test(n) || HINGLISH_SELF_HARM.test(n)) return "self-harm";
+  if (raw && DEVANAGARI_SELF_HARM.test(devanagari(raw))) return "self-harm";
+  if (raw && DEVANAGARI_DANGER.test(devanagari(raw))) return "danger";
+  // Hinglish pleas are not subject to the past-tense softening below: a missed plea costs more than a false 112 screen.
+  if (HINGLISH_DANGER.some((r) => r.test(n))) return "danger";
   const pastOnly = PAST.test(n) && !PRESENT.test(n);
   if (PLEA.test(n)) return "danger";
   if (STRONG_DANGER.some((r) => r.test(n)) && !pastOnly) return "danger";
@@ -418,9 +454,17 @@ export const wantsCall = (n: string) => /\b(call|dial|phone|ring)\b/.test(n);
 
 export function classify(text: string, domain: Domain): Classification {
   const n = normalize(text);
-  if (!n) return { intent: "greeting", confidence: 1, scores: {} };
+  if (!n) {
+    // normalize() drops non-Latin letters, so an all-Devanagari message can look empty. Check it before greeting.
+    const d = detectDanger(n, text);
+    if (d === "self-harm") return { intent: "mental_health", topic: "mental-health", confidence: 1, danger: d, scores: {} };
+    if (d === "danger") return { intent: "emergency_danger", topic: "emergency", confidence: 1, danger: d, scores: {} };
+    // Unmatched non-Latin text is not a greeting: "hello" to someone who may be in trouble is the worst reply.
+    if (/[\u0900-\u097F]/.test(text) && !/नमस्ते|नमस्कार|हेलो|हैलो|हाय|धन्यवाद|शुक्रिया/.test(text)) return { intent: "out_of_scope", confidence: 0.3, scores: {} };
+    return { intent: "greeting", confidence: 1, scores: {} };
+  }
 
-  const danger = detectDanger(n);
+  const danger = detectDanger(n, text);
   if (danger === "self-harm") {
     return { intent: "mental_health", topic: "mental-health", confidence: 1, danger, scores: {}, wantsCall: wantsCall(n) };
   }

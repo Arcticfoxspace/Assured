@@ -46,7 +46,7 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
    - No `GEMINI_API_KEY` → local rules only (`ai: "off"`).
    - With a key, Gemini is asked to label **vague** messages only. Its output is parsed as JSON and every field is checked against fixed lists (intent, topic, existing route id). Anything else is discarded.
    - **Danger is never sent to a model and never downgraded by one.** Danger and self-harm detection run locally first.
-   - Before anything leaves the server, emails, links and phone-like digit runs are masked.
+   - Before anything leaves the server, emails, links and phone-like digit runs are masked, and (best effort) names given after "my name is / call me / mera naam" and house-number or "near <place> colony/road" cues.
    - Invalid key, rate limit, timeout or malformed output → local rules answer, the reply says `ai: "invalid_key" | "rate_limited" | "unavailable"`, and Gemini is paused briefly (5 min / 1 min / 10 s) so a bad key never slows every message.
    - The key is read only on the server (`src/lib/env.ts`), never prefixed `NEXT_PUBLIC_`.
 
@@ -58,14 +58,58 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 - Messages are processed to produce a reply and are not stored by Mewvi. The conversation lives in the browser tab's memory only.
 - The only device state Mewvi is told is whether a journey is active (a yes/no). It never receives a location.
 - Evidence Organizer data (notes, files) stays in the browser (localStorage / IndexedDB) and is never uploaded. The scam-call helper analyses text on the device.
-- Rate limit: 40 Mewvi requests per minute per IP (best effort; see `rateLimit.ts`).
+- Rate limit: 40 Mewvi requests per minute per IP (best effort; see `rateLimit.ts`). Request bodies over 4096 characters are refused.
+- If a model provider is used (Gemini in the legacy path, or the agent's free providers), that provider receives the masked message described above (names and addresses are masked only by the cues listed there; a name or address written any other way is NOT removed) and applies its own terms. Gemini's free tier may use content to improve Google products; that is why the agent path does not use it.
+
+## Agent mode (optional, OFF by default)
+Set `MEWVI_AGENT=on` (or `shadow`) to let a free hosted model *plan* which approved tools to run for vague, non-sensitive messages. With the variable unset, Mewvi behaves exactly as described above.
+
+```
+message → V1 answer (always computed first = the fallback)
+        → gate: danger / sensitive / confident messages NEVER reach a model
+        → limits (per client, daily budget, in-flight cap) → free provider(s)
+        → strict JSON plan (≤3 steps, approved tools only; rejected, never repaired)
+        → executor (re-validates args, time limits, no repeats, verifies results)
+        → composer (fixed wording + verified data) → guard → reply
+```
+Any failure at any step returns the V1 reply. The model never writes text, numbers or links; it only picks tool names and enum values.
+
+| Tool | Risk | What it does |
+|---|---|---|
+| `search_resources` | read | ASSURED guides/tools for cyber, women or travel |
+| `get_helplines` | read | Verified national helplines for a topic |
+| `navigate` | read | Link to an existing ASSURED page |
+| `get_checklist` | read | "What to keep" evidence checklist, or a situation's steps (sensitive situations excluded) |
+| `prepare_draft` | read | Fill-in-the-blanks message/report for the person to review and copy. Mewvi never sends it |
+| `propose_call`, `propose_share_location`, `propose_check_in` | propose | Offer a confirmation card only. Nothing runs until the person taps Yes |
+
+**What a model is sent:** one message with emails, links, decimal coordinates and phone-like numbers masked, plus best-effort masking of self-introduced names and address cues (not a guarantee; other names and addresses, e.g. "my husband Rakesh" or "Sunrise Apartments", pass through), plus the page path. Never danger or sensitive messages, locations, journey state, history, contacts or evidence.
+
+**Providers (free only):** Cloudflare Workers AI (primary) and Ollama Cloud (optional secondary). Unknown or paid provider names in `MEWVI_PROVIDERS` are ignored. A "needs a paid plan" answer just pauses that provider. Per their own docs as of 2026-11: Cloudflare keeps no prompt/response content for standard requests and does not train on it; Ollama says it does not train on prompts or responses. Re-check both before launch. When `MEWVI_AGENT` is on or shadow, the legacy Gemini path is not used.
+
+| Variable (server-only) | Purpose |
+|---|---|
+| `MEWVI_AGENT` | `off` (default), `shadow` (plan and count, answer with V1), `on` |
+| `MEWVI_PROVIDERS` | Order, default `cloudflare,ollama` |
+| `CF_ACCOUNT_ID`, `CF_AI_TOKEN`, `CF_AI_MODEL` | Cloudflare. Use a token limited to Workers AI. Model optional |
+| `OLLAMA_API_KEY`, `OLLAMA_MODEL` | Ollama Cloud. The model must be set explicitly |
+| `MEWVI_DAILY_BUDGET` | Max model calls per day (default 300). Per server instance, or for the whole deployment once the shared counter is set up (below) |
+
+**Shared counter (optional, Part C):** if Supabase is configured **and** the "Part C" block in `supabase/schema.sql` has been run, model calls are also counted across all server instances: one deployment-wide daily budget, plus a per-client hourly cap when `SHARE_TOKEN_SECRET` is set (clients are stored only as salted hashes, never raw IPs). Only counters are stored. If the counter is unreachable the agent keeps the in-memory limits and the V1 fallback; it never blocks V1. Not yet tested against a live Supabase.
+
+**Limits that are still per instance:** the per-minute client limiter and the in-flight cap are in memory, so on serverless hosting they are best effort. Without the shared counter the daily budget is also per instance. The provider's own free quota is the hard stop. `/api/status` shows mode, configured provider ids and counters (never keys or message text).
+
+**Roll back:** unset `MEWVI_AGENT` (or set it to `off`). No redeploy of code is needed beyond Vercel's normal env-var redeploy.
 
 ## Other Part 4 features and their honest limits
 - **Evidence Organizer** (`/evidence`): notes, images, documents, dates → summary, timeline, checklist; export as text, copy, print. The checklist is taken from ASSURED's verified report guides. It does **not** claim legal admissibility.
 - **Suspicious call helper** (`/cyber/scam-call`): a browser cannot see or block ordinary phone calls. It checks text the person types for common red-flag patterns, never gives a "safe"/"scam" verdict, and links to official reporting.
 - **Distress demo** (`/safety/distress-demo`): labelled *Prototype*, *Experimental*, *Requires microphone permission*. It measures loudness against a room baseline. It cannot recognise screams or assault. Audio is processed in memory only. On trigger it only asks "Are you okay?"; "I Need Help" shows a Call 112 button the person must tap. It never contacts anyone.
 
-## Test matrix (`tests/mewvi.test.ts`)
+## Test matrix (`tests/mewvi.test.ts`, V1 and Gemini; `tests/agent.test.ts`, agent)
+`tests/agent.test.ts` covers: plan validation (unknown tools/args/extra fields rejected), the tool registry and confirmation-only actions, executor limits/timeouts/malformed results, the model gate (danger/sensitive never reach a model), provider outage/timeout/quota/auth/invalid output, privacy masking, secrets staying out of replies, prompt-injection attempts, budget/limit enforcement, free-only provider handling, the Cloudflare and Ollama adapters (with fake network), the route's size and rate limits, and the browser client's handling of bad server replies.
+
+### V1 matrix
 | Requirement | Test |
 |---|---|
 | Gemini absent | "gemini absent…" |
@@ -78,7 +122,7 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 | Emergency guidance | "emergency: …", "self-harm: …", "guidance flows…", "scenario messages…" |
 | Mewvi across routes | "Mewvi answers … on every ASSURED page", "context: …" |
 
-**Status:** these tests were written for this build but **not run** (verification was explicitly skipped). Run `npm test` before relying on them; CI (`.github/workflows/ci.yml`) does so.
+**Status:** run `npm test`; CI (`.github/workflows/ci.yml`) does so too. Browser and device behaviour (panel layout, keyboard, copy button, Android/Windows/iPhone) is **not** covered by these tests and needs manual checking.
 
 ## Known limits
 - Local matching is keyword/pattern based English. Unusual phrasing may fall through to "outside what I can help with"; with Gemini enabled, vague messages get a second chance.
@@ -86,4 +130,4 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 - Re-verify the helpline data (`sources.json`) before a public launch, as numbers change.
 
 ## Turning things off
-Remove `GEMINI_API_KEY` to disable Gemini entirely. Mewvi keeps working.
+Remove `GEMINI_API_KEY` to disable Gemini entirely, and unset `MEWVI_AGENT` to disable the agent. Mewvi keeps working on its built-in rules.

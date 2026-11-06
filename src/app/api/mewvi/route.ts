@@ -2,7 +2,9 @@ import { z } from "zod";
 import { clientIp, rateLimit } from "@/lib/server/rateLimit";
 import { json } from "@/lib/server/http";
 import { geminiNlu } from "@/lib/server/gemini";
+import { agentMode, respondWithAgent } from "@/lib/server/mewviAgent";
 import { respond } from "@/lib/mewvi/respond";
+import { MAX_MEWVI_BODY_CHARS as MAX_BODY_CHARS } from "@/lib/server/limits";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +15,36 @@ const Body = z.object({
 });
 
 /**
- * Mewvi's endpoint. Runs the deterministic router; if GEMINI_API_KEY is set
- * it is asked to label vague messages only. With no key (or a bad one) the
- * reply comes from local rules and says so in `ai`.
+ * Mewvi's endpoint.
+ *  MEWVI_AGENT unset/off : the deterministic router (+ legacy Gemini labelling if GEMINI_API_KEY is set).
+ *  MEWVI_AGENT=shadow    : the agent plans and counts, but the reply is still V1's.
+ *  MEWVI_AGENT=on        : the agent answers when it can; any failure returns the V1 reply.
+ * Request bodies are size-limited before they are parsed, and no message content is logged.
  */
 export async function POST(req: Request) {
-  if (!rateLimit(`mewvi:${clientIp(req)}`, 40, 60_000)) return json({ error: "rate_limited" }, 429);
+  const ip = clientIp(req);
+  if (!rateLimit(`mewvi:${ip}`, 40, 60_000)) return json({ error: "rate_limited" }, 429);
+
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_CHARS) return json({ error: "too_large" }, 413);
+  let raw: string;
+  try {
+    raw = await req.text();
+  } catch {
+    return json({ error: "bad_request" }, 400);
+  }
+  if (raw.length > MAX_BODY_CHARS) return json({ error: "too_large" }, 413);
+
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(raw);
   } catch {
     return json({ error: "bad_request" }, 400);
   }
   const p = Body.safeParse(body);
   if (!p.success) return json({ error: "bad_request" }, 400);
 
-  const reply = await respond(p.data, { nlu: geminiNlu() });
-  return json(reply);
+  const mode = agentMode();
+  if (mode === "off") return json(await respond(p.data, { nlu: geminiNlu() }));
+  return json(await respondWithAgent(p.data, mode, { clientKey: ip }));
 }

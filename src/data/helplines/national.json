@@ -238,6 +238,35 @@
       "availability": "24x7",
       "sourceId": "tourism",
       "verifiedOn": "2026-09-24"
+    },
+    {
+      "id": "nhrc-14433",
+      "name": "National Human Rights Commission (NHRC) Helpline",
+      "category": [
+        "human-rights",
+        "legal-aid"
+      ],
+      "number": "14433",
+      "website": "https://nhrc.nic.in",
+      "stateCode": "IN",
+      "description": "Toll-free NHRC helpline for guidance on complaints about human rights violations, including by public servants. Complaints can also be filed online at nhrc.nic.in. For an emergency, call 112 first.",
+      "availability": "Hours not confirmed on the official site: check nhrc.nic.in",
+      "sourceId": "nhrc-14433",
+      "verifiedOn": "2026-11-03"
+    },
+    {
+      "id": "manas-1933",
+      "name": "MANAS National Narcotics Helpline",
+      "category": [
+        "drugs",
+        "addiction"
+      ],
+      "number": "1933",
+      "stateCode": "IN",
+      "description": "Toll-free national narcotics helpline run by the Narcotics Control Bureau. Report drug-related activity confidentially, or ask for counselling and de-addiction support (counselling calls are linked to the Ministry of Social Justice and Empowerment helpline 14446).",
+      "availability": "24x7",
+      "sourceId": "manas-1933",
+      "verifiedOn": "2026-11-03"
     }
   ]
 }

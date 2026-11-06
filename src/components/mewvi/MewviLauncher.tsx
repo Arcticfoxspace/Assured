@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MewviPanel, type MewviTurn } from "@/components/mewvi/MewviPanel";
+import { MewviErrorBoundary } from "@/components/mewvi/MewviErrorBoundary";
 import { MewviAvatar } from "@/components/mewvi/MewviAvatar";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,11 @@ export function MewviLauncher() {
 
   return (
     <>
-      {open && <MewviPanel onClose={() => setOpen(false)} turns={turns} setTurns={setTurns} />}
+      {open && (
+        <MewviErrorBoundary onClose={() => setOpen(false)}>
+          <MewviPanel onClose={() => setOpen(false)} turns={turns} setTurns={setTurns} />
+        </MewviErrorBoundary>
+      )}
       {!open && (
         <button
           onClick={() => setOpen(true)}

@@ -103,6 +103,8 @@ function guardBlock(b: Block, issues: string[]): Block | undefined {
     }
     case "path":
       return { ...b, title: scrubText(b.title, issues), steps: b.steps.map((s) => guardStep(s, issues)) };
+    case "draft":
+      return { ...b, title: scrubText(b.title, issues), body: scrubText(b.body, issues), note: b.note ? scrubText(b.note, issues) : undefined };
     case "places": {
       // Nearby places come from a live OpenStreetMap lookup (never a model), but
       // we still scrub the free-text label/name fields defensively so this

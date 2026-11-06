@@ -14,6 +14,9 @@ to split it into separate repos later if you want to.
 Error: Process completed with exit code 1
 ```
 
+(Current repo keeps its ESLint config in the `eslintConfig` block of
+`package.json`, so no `.eslintrc.json` is needed unless you add one.)
+
 This means the project ESLint config file — `.eslintrc.json` — was not
 found in the folder `npm run lint` was run from. It happens almost
 always for one of these reasons:
@@ -160,7 +163,7 @@ that.
 ## 5. Splitting into separate repos (only if/when you actually want this)
 
 Right now everything is **one repo, one app, one deployment** — this is
-correct for a hackathon and is what the project is built for by
+correct at this stage and is what the project is built for by
 default. The code is already wired so a future split doesn't need a
 rewrite, but it's still real, deliberate work — do this only if you
 specifically need e.g. `cyber.assured.in` as its own deployment

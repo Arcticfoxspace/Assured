@@ -9,7 +9,7 @@
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white">
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white">
-  <img alt="Status" src="https://img.shields.io/badge/status-hackathon_build-orange">
+  <img alt="Status" src="https://img.shields.io/badge/status-active_development-orange">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-lightgrey">
 </p>
 
@@ -135,7 +135,7 @@ flowchart TD
 | **Data layer** | Supabase/Postgres when configured, with Row-Level Security and no public policies. With no database configured, the same API surface runs on an in-memory store so the whole app — including journeys and guardian tracking — still works end to end for a local demo. |
 | **External integrations** | openrouteservice, Resend, Twilio, Gemini, and OpenStreetMap. Each is read from `serverEnv`, feature-detected, and the UI states plainly when one isn't configured rather than pretending it is. |
 
-**Why one app instead of separate services:** a hackathon judge (or a
+**Why one app instead of separate services:** a reviewer (or a
 first-time contributor) should be able to clone one repo, run one
 `npm install`, and see the whole product — not stitch together five
 deployments. Splitting by *route*, not by *service*, is what gives

@@ -119,7 +119,9 @@ export type Block =
   | { type: "helplines"; items: HelplineRef[] }
   | { type: "links"; items: LinkRef[] }
   | { type: "path"; title: string; steps: PathStep[] }
-  | { type: "places"; label: string; items: NearbyPlaceRef[] };
+  | { type: "places"; label: string; items: NearbyPlaceRef[] }
+  /** Text prepared FOR the person to review, edit and send themselves. Mewvi never sends it. */
+  | { type: "draft"; title: string; body: string; note?: string };
 
 /** A sensitive action Mewvi may only PROPOSE. The person must tap Yes. */
 export interface Confirmation {
@@ -135,7 +137,7 @@ export interface Confirmation {
 
 export interface MewviReply {
   intent: IntentId;
-  engine: "local" | "gemini";
+  engine: "local" | "gemini" | "agent";
   ai: AiStatus;
   urgent?: boolean;
   blocks: Block[];

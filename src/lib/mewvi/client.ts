@@ -1,8 +1,20 @@
-// src/lib/mewvi/client.ts — browser side. Asks ASSURED's server first (which may
-// use Gemini); if the server can't be reached, the very same rules run here on
-// the device, so Mewvi still answers offline — including the emergency flows.
+// src/lib/mewvi/client.ts — browser side. Asks ASSURED's server first (which may use the agent);
+// if the server can't be reached or answers badly, the very same rules run here on the device,
+// so Mewvi still answers offline — including the emergency flows.
 import { respond } from "./respond";
 import type { MewviReply, RespondInput } from "./types";
+
+/** Anything from the network is checked before the panel renders it. */
+function normalizeReply(data: unknown): MewviReply | undefined {
+  const d = data as Partial<MewviReply> | null;
+  if (!d || typeof d !== "object" || !Array.isArray(d.blocks) || typeof d.intent !== "string") return undefined;
+  return {
+    ...(d as MewviReply),
+    blocks: d.blocks.filter((b) => b && typeof b === "object" && typeof (b as { type?: unknown }).type === "string"),
+    confirmations: Array.isArray(d.confirmations) ? d.confirmations : [],
+    suggestions: Array.isArray(d.suggestions) ? d.suggestions.filter((s) => typeof s === "string") : [],
+  };
+}
 
 export async function askMewvi(input: RespondInput): Promise<MewviReply> {
   const ctrl = new AbortController();
@@ -15,8 +27,8 @@ export async function askMewvi(input: RespondInput): Promise<MewviReply> {
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error("bad_status");
-    const data = (await res.json()) as MewviReply;
-    if (!data || !Array.isArray(data.blocks)) throw new Error("bad_shape");
+    const data = normalizeReply(await res.json());
+    if (!data) throw new Error("bad_shape");
     return data;
   } catch {
     const local = await respond(input);

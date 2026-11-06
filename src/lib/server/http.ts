@@ -11,4 +11,4 @@ export function fail(e: unknown) {
   return json({ error: "server_error" }, 500);
 }
 
-export const UA = "ASSURED-safety-app/0.1 (hackathon build)";
+export const UA = "ASSURED-safety-app/0.1 (+https://github.com/arcticfoxcreations/Assured)";

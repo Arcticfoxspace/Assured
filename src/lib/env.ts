@@ -23,4 +23,17 @@ export const serverEnv = {
   geminiKey: () => process.env.GEMINI_API_KEY,
   geminiModel: () => process.env.GEMINI_MODEL || "gemini-2.5-flash",
   onVercel: () => Boolean(process.env.VERCEL),
+
+  // ---- Mewvi agent (all optional; unset = the agent is simply off) ----
+  /** off (default) | shadow (plan but still answer with V1) | on. */
+  agentMode: () => (process.env.MEWVI_AGENT ?? "off").trim().toLowerCase(),
+  /** Comma-separated provider order, e.g. "cloudflare,ollama". Only free providers are recognised. */
+  agentProviders: () => process.env.MEWVI_PROVIDERS ?? "cloudflare,ollama",
+  /** Max model calls per day per server instance. */
+  agentDailyBudget: () => process.env.MEWVI_DAILY_BUDGET,
+  cfAccountId: () => process.env.CF_ACCOUNT_ID,
+  cfAiToken: () => process.env.CF_AI_TOKEN,
+  cfAiModel: () => process.env.CF_AI_MODEL,
+  ollamaKey: () => process.env.OLLAMA_API_KEY,
+  ollamaModel: () => process.env.OLLAMA_MODEL,
 };
