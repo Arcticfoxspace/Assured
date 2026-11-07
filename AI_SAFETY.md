@@ -11,8 +11,8 @@ It is **not** a general assistant. Unrelated requests ("write a poem", "who won 
 
 ```
 message → sanitise → local classifier (danger decided HERE, always)
-        → [optional] Gemini label, only if local is unsure and not danger
         → tools + flows (verified data only) → guard → reply
+        (no model is involved on this path; the optional agent is described below)
 ```
 
 | Piece | File |
@@ -24,7 +24,6 @@ message → sanitise → local classifier (danger decided HERE, always)
 | Verified data + allow-lists | `src/lib/mewvi/catalog.ts` |
 | Hallucination guard | `src/lib/mewvi/guard.ts` |
 | Orchestrator | `src/lib/mewvi/respond.ts` |
-| Optional Gemini classifier (server) | `src/lib/server/gemini.ts` |
 | API | `src/app/api/mewvi/route.ts` |
 | Browser client with offline fallback | `src/lib/mewvi/client.ts` |
 
@@ -42,13 +41,12 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 
 2. **Sensitive actions need explicit confirmation.** Calling, sharing location and starting a check-in are only ever *proposed* as a confirmation card ("Would you like to open the call option for 112?"). Reply blocks never contain a `tel:` link. The "Call…" button on a helpline card opens the same confirmation. Mewvi never reads or sends a location itself; "Yes" only opens the page, where the person still taps each button.
 
-3. **Gemini is optional and can only return labels.**
-   - No `GEMINI_API_KEY` → local rules only (`ai: "off"`).
-   - With a key, Gemini is asked to label **vague** messages only. Its output is parsed as JSON and every field is checked against fixed lists (intent, topic, existing route id). Anything else is discarded.
-   - **Danger is never sent to a model and never downgraded by one.** Danger and self-harm detection run locally first.
-   - Before anything leaves the server, emails, links and phone-like digit runs are masked, and (best effort) names given after "my name is / call me / mera naam" and house-number or "near <place> colony/road" cues.
-   - Invalid key, rate limit, timeout or malformed output → local rules answer, the reply says `ai: "invalid_key" | "rate_limited" | "unavailable"`, and Gemini is paused briefly (5 min / 1 min / 10 s) so a bad key never slows every message.
-   - The key is read only on the server (`src/lib/env.ts`), never prefixed `NEXT_PUBLIC_`.
+3. **No model is used on the built-in path, and danger is never sent to one.**
+   - With `MEWVI_AGENT` unset or `off`, Mewvi answers from local rules only (`ai: "off"`, `engine: "local"`). It makes no external request and needs no key.
+   - Danger and self-harm detection run locally first, always. The optional agent (below) never sees danger or sensitive messages, and cannot downgrade a local danger decision.
+   - Before anything leaves the server in agent mode, emails, links and phone-like digit runs are masked, and (best effort) names given after "my name is / call me / mera naam" and house-number or "near <place> colony/road" cues.
+   - If a provider fails (bad key, rate limit, timeout, malformed output), the built-in rules answer and the reply says `ai: "invalid_key" | "rate_limited" | "unavailable"`. The panel tells the person that this answer came from built-in guidance.
+   - Provider keys are read only on the server (`src/lib/env.ts`), never prefixed `NEXT_PUBLIC_`.
 
 4. **Immediate danger** (`emergency_danger`, `flow_followed`, `flow_unsafe_transport`, self-harm): lead with 112, then a trusted contact and location sharing, then heading toward a safe public place. Short, never a wall of text. Past-tense mentions ("I was attacked last year") and pure information requests ("what is the emergency number?") are treated as reporting/helpline questions, not emergencies.
 
@@ -59,7 +57,7 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 - The only device state Mewvi is told is whether a journey is active (a yes/no). It never receives a location.
 - Evidence Organizer data (notes, files) stays in the browser (localStorage / IndexedDB) and is never uploaded. The scam-call helper analyses text on the device.
 - Rate limit: 40 Mewvi requests per minute per IP (best effort; see `rateLimit.ts`). Request bodies over 4096 characters are refused.
-- If a model provider is used (Gemini in the legacy path, or the agent's free providers), that provider receives the masked message described above (names and addresses are masked only by the cues listed there; a name or address written any other way is NOT removed) and applies its own terms. Gemini's free tier may use content to improve Google products; that is why the agent path does not use it.
+- If the agent's free providers are used, the provider receives the masked message described above (names and addresses are masked only by the cues listed there; a name or address written any other way is NOT removed) and applies its own terms.
 
 ## Agent mode (optional, OFF by default)
 Set `MEWVI_AGENT=on` (or `shadow`) to let a free hosted model *plan* which approved tools to run for vague, non-sensitive messages. With the variable unset, Mewvi behaves exactly as described above.
@@ -85,7 +83,7 @@ Any failure at any step returns the V1 reply. The model never writes text, numbe
 
 **What a model is sent:** one message with emails, links, decimal coordinates and phone-like numbers masked, plus best-effort masking of self-introduced names and address cues (not a guarantee; other names and addresses, e.g. "my husband Rakesh" or "Sunrise Apartments", pass through), plus the page path. Never danger or sensitive messages, locations, journey state, history, contacts or evidence.
 
-**Providers (free only):** Cloudflare Workers AI (primary) and Ollama Cloud (optional secondary). Unknown or paid provider names in `MEWVI_PROVIDERS` are ignored. A "needs a paid plan" answer just pauses that provider. Per their own docs as of 2026-11: Cloudflare keeps no prompt/response content for standard requests and does not train on it; Ollama says it does not train on prompts or responses. Re-check both before launch. When `MEWVI_AGENT` is on or shadow, the legacy Gemini path is not used.
+**Providers (free only):** Cloudflare Workers AI (primary) and Ollama Cloud (optional secondary). Unknown or paid provider names in `MEWVI_PROVIDERS` are ignored. A "needs a paid plan" answer just pauses that provider. Per their own docs as of 2026-11: Cloudflare keeps no prompt/response content for standard requests and does not train on it; Ollama says it does not train on prompts or responses. Re-check both before launch.
 
 | Variable (server-only) | Purpose |
 |---|---|
@@ -106,15 +104,13 @@ Any failure at any step returns the V1 reply. The model never writes text, numbe
 - **Suspicious call helper** (`/cyber/scam-call`): a browser cannot see or block ordinary phone calls. It checks text the person types for common red-flag patterns, never gives a "safe"/"scam" verdict, and links to official reporting.
 - **Distress demo** (`/safety/distress-demo`): labelled *Prototype*, *Experimental*, *Requires microphone permission*. It measures loudness against a room baseline. It cannot recognise screams or assault. Audio is processed in memory only. On trigger it only asks "Are you okay?"; "I Need Help" shows a Call 112 button the person must tap. It never contacts anyone.
 
-## Test matrix (`tests/mewvi.test.ts`, V1 and Gemini; `tests/agent.test.ts`, agent)
+## Test matrix (`tests/mewvi.test.ts`, built-in rules; `tests/agent.test.ts`, agent)
 `tests/agent.test.ts` covers: plan validation (unknown tools/args/extra fields rejected), the tool registry and confirmation-only actions, executor limits/timeouts/malformed results, the model gate (danger/sensitive never reach a model), provider outage/timeout/quota/auth/invalid output, privacy masking, secrets staying out of replies, prompt-injection attempts, budget/limit enforcement, free-only provider handling, the Cloudflare and Ollama adapters (with fake network), the route's size and rate limits, and the browser client's handling of bad server replies.
 
 ### V1 matrix
 | Requirement | Test |
 |---|---|
-| Gemini absent | "gemini absent…" |
-| Gemini present | "gemini present…", "gemini never receives raw emails…" |
-| Invalid key / outage / garbage | "gemini invalid key…", "…rate-limit, outage and garbage…", "parseNlu…" |
+| No key, no network | "no key needed: the built-in path makes no network request…" |
 | Navigation | "navigation: …", "report assistant: …" |
 | Tool execution | "tools: …" |
 | Confirmation flows | "sensitive actions are only proposed…" |
@@ -125,9 +121,9 @@ Any failure at any step returns the V1 reply. The model never writes text, numbe
 **Status:** run `npm test`; CI (`.github/workflows/ci.yml`) does so too. Browser and device behaviour (panel layout, keyboard, copy button, Android/Windows/iPhone) is **not** covered by these tests and needs manual checking.
 
 ## Known limits
-- Local matching is keyword/pattern based English. Unusual phrasing may fall through to "outside what I can help with"; with Gemini enabled, vague messages get a second chance.
+- Local matching is keyword/pattern based English. Hindi and Hinglish danger phrases are also matched, but that list has not been reviewed by a native speaker (see `docs/U1_HINGLISH_DANGER.md`). Unusual phrasing may fall through to "outside what I can help with"; with the optional agent enabled, vague non-sensitive messages get a second chance.
 - Guidance is general safety information, not a substitute for professional or official help.
 - Re-verify the helpline data (`sources.json`) before a public launch, as numbers change.
 
 ## Turning things off
-Remove `GEMINI_API_KEY` to disable Gemini entirely, and unset `MEWVI_AGENT` to disable the agent. Mewvi keeps working on its built-in rules.
+Unset `MEWVI_AGENT` (or set it to `off`) to disable the agent. Mewvi keeps working on its built-in rules.

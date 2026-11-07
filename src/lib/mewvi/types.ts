@@ -62,7 +62,7 @@ export type TopicId = (typeof TOPIC_IDS)[number];
 /** What the optional AI layer did (or didn't do) for one message. */
 export type AiStatus = "off" | "ok" | "skipped" | "invalid_key" | "rate_limited" | "unavailable";
 
-/** The ONLY thing an AI model is ever allowed to return: a label, never text. */
+/** A classified intent: a label, never free text. */
 export interface Nlu {
   intent: IntentId;
   topic?: TopicId;
@@ -70,9 +70,6 @@ export interface Nlu {
   target?: string;
   wantsCall?: boolean;
 }
-
-export type NluOutcome = { ok: true; nlu: Nlu } | { ok: false; reason: AiStatus };
-export type NluFn = (message: string, pathname: string) => Promise<NluOutcome>;
 
 /* ───────────── reply blocks (what the panel renders) ───────────── */
 
@@ -137,7 +134,7 @@ export interface Confirmation {
 
 export interface MewviReply {
   intent: IntentId;
-  engine: "local" | "gemini" | "agent";
+  engine: "local" | "agent";
   ai: AiStatus;
   urgent?: boolean;
   blocks: Block[];

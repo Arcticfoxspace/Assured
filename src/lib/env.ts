@@ -20,8 +20,6 @@ export const serverEnv = {
   supabaseKey: () => process.env.SUPABASE_SERVICE_ROLE_KEY,
   orsKey: () => process.env.ORS_API_KEY,
   tokenSecret: () => process.env.SHARE_TOKEN_SECRET ?? "",
-  geminiKey: () => process.env.GEMINI_API_KEY,
-  geminiModel: () => process.env.GEMINI_MODEL || "gemini-2.5-flash",
   onVercel: () => Boolean(process.env.VERCEL),
 
   // ---- Mewvi agent (all optional; unset = the agent is simply off) ----

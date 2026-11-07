@@ -8,11 +8,10 @@ import { callConfirmation, findNearbyHelp, navigateTo, prepareReport, searchCybe
 import { verifiedNumbers } from "../src/lib/mewvi/catalog";
 import { getRoute, relatedRoutes, routes } from "../src/lib/navigation";
 import { nationalHelplines } from "../src/lib/helplines";
-import { geminiNlu, parseNlu, resetGeminiState } from "../src/lib/server/gemini";
 import { analyseScam } from "../src/lib/safety/scamCheck";
 import { createDetector, dbFromRms, rmsOf } from "../src/lib/safety/distress";
 import { buildSummary, checklistFor, emptyCase, isCategory, sortedEntries } from "../src/lib/evidence/model";
-import type { Block, MewviReply, NluFn } from "../src/lib/mewvi/types";
+import type { Block, MewviReply } from "../src/lib/mewvi/types";
 
 /* ───────── helpers ───────── */
 
@@ -22,96 +21,28 @@ const hrefs = (r: MewviReply) =>
 const pathBlock = (r: MewviReply) => r.blocks.find((b): b is Extract<Block, { type: "path" }> => b.type === "path");
 const call = (r: MewviReply) => r.confirmations.find((c) => c.kind === "call");
 
-interface Calls { n: number; body: string }
-const fakeFetch = (status: number, body: unknown, calls: Calls = { n: 0, body: "" }) =>
-  (async (_u: unknown, init?: RequestInit) => {
-    calls.n++;
-    calls.body = String(init?.body ?? "");
-    return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
+/* ───────── built-in path: no key, no network ───────── */
+
+test("no key needed: the built-in path makes no network request, even for vague and danger messages", async () => {
+  const realFetch = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = (async (url: unknown) => {
+    requested.push(String(url));
+    throw new Error("the built-in path must not use the network");
   }) as unknown as typeof fetch;
-const geminiBody = (text: string) => ({ candidates: [{ content: { parts: [{ text }] } }] });
-
-const KEY = process.env.GEMINI_API_KEY;
-function withKey(fn: () => Promise<void>) {
-  return async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    resetGeminiState();
-    try { await fn(); } finally {
-      if (KEY === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = KEY;
-      resetGeminiState();
+  try {
+    for (const message of ["I need the women helpline", "xyz qwerty", "hmm", "Someone is attacking me", "I want to die", "mujhe bachao"]) {
+      const r = await respond({ message });
+      assert.equal(r.engine, "local", message);
+      assert.equal(r.ai, "off", message);
+      assert.ok(r.blocks.length > 0, message);
     }
-  };
-}
-
-/* ───────── Gemini absent / present / invalid ───────── */
-
-test("gemini absent: Mewvi runs on local rules and says so", async () => {
-  delete process.env.GEMINI_API_KEY;
-  assert.equal(geminiNlu(), undefined);
-  const r = await respond({ message: "I need the women helpline" }, { nlu: geminiNlu() });
-  assert.equal(r.engine, "local");
-  assert.equal(r.ai, "off");
-  assert.ok(helplineIds(r).includes("women-181"));
-  if (KEY !== undefined) process.env.GEMINI_API_KEY = KEY;
-});
-
-test("gemini present: only vague messages are labelled by the model, and only labels are used", withKey(async () => {
-  const calls: Calls = { n: 0, body: "" };
-  // The model tries to smuggle a number and reply text alongside its label. Only the label may survive.
-  const nlu = geminiNlu(fakeFetch(200, geminiBody('{"intent":"helpline_search","topic":"cyber","phone":"9999999999","reply":"Call 9999999999"}'), calls));
-  assert.ok(nlu);
-  const vague = await respond({ message: "xyz qwerty" }, { nlu });
-  assert.equal(vague.engine, "gemini");
-  assert.equal(vague.ai, "ok");
-  assert.ok(helplineIds(vague).includes("cybercrime-1930"));
-  assert.ok(!JSON.stringify(vague).includes("9999999999"));
-  assert.equal(calls.n, 1);
-
-  // A confident local match never needs the model.
-  const confident = await respond({ message: "I want to share my location" }, { nlu });
-  assert.equal(confident.engine, "local");
-  assert.equal(calls.n, 1);
-}));
-
-test("gemini invalid key: falls back to local rules and reports the status", withKey(async () => {
-  const calls: Calls = { n: 0, body: "" };
-  const nlu = geminiNlu(fakeFetch(400, '{"error":{"message":"API key not valid. Please pass a valid API key."}}', calls));
-  const r = await respond({ message: "hmm" }, { nlu });
-  assert.equal(r.ai, "invalid_key");
-  assert.equal(r.engine, "local");
-  assert.ok(r.blocks.length > 0);
-  // The failure is remembered, so the next message doesn't wait on a bad key.
-  const again = await respond({ message: "hmm" }, { nlu });
-  assert.equal(again.ai, "invalid_key");
-  assert.equal(calls.n, 1);
-}));
-
-test("gemini rate-limit, outage and garbage output all fall back safely", withKey(async () => {
-  const limited = await geminiNlu(fakeFetch(429, "{}"))!("hmm", "/");
-  assert.deepEqual(limited, { ok: false, reason: "rate_limited" });
-  resetGeminiState();
-  const down = await geminiNlu((async () => { throw new Error("network"); }) as unknown as typeof fetch)!("hmm", "/");
-  assert.deepEqual(down, { ok: false, reason: "unavailable" });
-  resetGeminiState();
-  const junk = await geminiNlu(fakeFetch(200, geminiBody("Sure! Call 9999999999")))!("hmm", "/");
-  assert.deepEqual(junk, { ok: false, reason: "unavailable" });
-}));
-
-test("gemini never receives raw emails, links or phone numbers", withKey(async () => {
-  const calls: Calls = { n: 0, body: "" };
-  await geminiNlu(fakeFetch(200, geminiBody('{"intent":"greeting"}'), calls))!("my number is 9876543210, mail a@b.com, see https://x.example/p", "/cyber");
-  assert.ok(calls.n === 1);
-  assert.ok(!calls.body.includes("9876543210"));
-  assert.ok(!calls.body.includes("a@b.com"));
-  assert.ok(!calls.body.includes("x.example"));
-}));
-
-test("parseNlu accepts only known labels", () => {
-  assert.equal(parseNlu('{"intent":"call_number","phone":"999"}'), undefined);
-  assert.equal(parseNlu("not json"), undefined);
-  assert.deepEqual(parseNlu('```json\n{"intent":"navigate","target":"evidence"}\n```'), { intent: "navigate", target: "evidence" });
-  assert.equal(parseNlu('{"intent":"navigate","target":"https://evil.com"}')?.target, undefined);
-  assert.equal(parseNlu('{"intent":"helpline_search","topic":"made-up"}')?.topic, undefined);
+    const r = await respond({ message: "I need the women helpline" });
+    assert.ok(helplineIds(r).includes("women-181"));
+    assert.deepEqual(requested, []);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 /* ───────── navigation (spec examples) ───────── */
@@ -223,7 +154,7 @@ test("tools: navigation, helplines, nearby help, resources, report, check-in, sh
 test("guard: forged numbers, emails, links, routes, helplines and call buttons are removed", () => {
   const forged: MewviReply = {
     intent: "helpline_search",
-    engine: "gemini",
+    engine: "agent",
     ai: "ok",
     blocks: [
       { type: "text", text: "Call 9999999999 or mail fake@evil.com or visit https://evil.com/help. The real ones are 112 and 1930." },
@@ -309,11 +240,11 @@ test("emergency: danger goes straight to 112, trusted contact, location and a sa
   assert.ok(JSON.stringify(medical.blocks).includes("ambulance"));
 });
 
-test("emergency: a model can never downgrade danger, and questions about numbers are not treated as danger", async () => {
-  const nlu: NluFn = async () => { throw new Error("must not be called for danger"); };
-  const r = await respond({ message: "Someone is attacking me" }, { nlu });
+test("emergency: danger is decided locally, and questions about numbers are not treated as danger", async () => {
+  const r = await respond({ message: "Someone is attacking me" });
   assert.equal(r.intent, "emergency_danger");
-  assert.equal(r.ai, "skipped");
+  assert.equal(r.engine, "local");
+  assert.equal(r.ai, "off");
 
   for (const message of ["What is the emergency number?", "Help me find a helpline", "I was attacked last year, how do I report it?"]) {
     const x = await respond({ message });

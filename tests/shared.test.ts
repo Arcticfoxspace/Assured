@@ -7,7 +7,7 @@ import { resetRouterState } from "../src/lib/server/ai/router";
 import { resetStats, snapshot } from "../src/lib/server/ai/stats";
 import type { GenerateRequest, ModelProvider } from "../src/lib/server/ai/types";
 
-const KEYS = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SHARE_TOKEN_SECRET", "MEWVI_DAILY_BUDGET", "MEWVI_AGENT", "CF_ACCOUNT_ID", "CF_AI_TOKEN", "GEMINI_API_KEY"];
+const KEYS = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SHARE_TOKEN_SECRET", "MEWVI_DAILY_BUDGET", "MEWVI_AGENT", "CF_ACCOUNT_ID", "CF_AI_TOKEN"];
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
 const run = (fn: () => Promise<void> | void) => async () => {
   for (const k of KEYS) delete process.env[k];

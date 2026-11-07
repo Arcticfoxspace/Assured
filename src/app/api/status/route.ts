@@ -20,9 +20,8 @@ export async function GET(req: Request) {
     // true only when the provider's keys are set. Push is not built.
     notifications: { ...channels(), push: false },
     scheduler: Boolean(process.env.CRON_SECRET),
-    // Whether Mewvi may use Gemini to understand vague messages. Mewvi works either way.
+    // Mewvi always works on its built-in rules; the agent is an optional layer on top.
     assistant: {
-      gemini: Boolean(serverEnv.geminiKey()),
       // Agent mode, which free providers are configured (ids only — never keys), and counters. No message content.
       agent: { mode: agentMode(), providers: configuredProviders().map((p) => p.id), dailyBudget: dailyBudget(), ...(owner ? { counters: snapshot() } : {}) },
     },

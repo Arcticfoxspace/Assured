@@ -13,11 +13,11 @@
 import { contextSuggestions, contextTopic, pageContext, type PageContext } from "./context";
 import { DISCLAIMER, EMERGENCY_FLOW, FLOWS, MEDICAL_FLOW, MENTAL_HEALTH_FLOW, SELF_HARM_FLOW, type Flow } from "./flows";
 import { verifyReply } from "./guard";
-import { AI_THRESHOLD, classify, detectTopic, isMedical, resolveTarget, type Classification } from "./intents";
+import { classify, detectTopic, isMedical, resolveTarget, type Classification } from "./intents";
 import { callConfirmation, findNearbyHelp, navigateTo, prepareReport, reportPath, searchHelplines, shareLocation, startCheckIn } from "./tools";
 import { helplineById, refsFor, routeLink, stateNames } from "./catalog";
 import { normalize, sanitizeMessage } from "./text";
-import type { AiStatus, Block, Confirmation, IntentId, MewviReply, Nlu, NluFn, RespondInput, TopicId } from "./types";
+import type { Block, Confirmation, IntentId, MewviReply, Nlu, RespondInput, TopicId } from "./types";
 
 interface Parts {
   blocks: Block[];
@@ -103,7 +103,8 @@ function honestyNotices(message: string, n: string, refIds: string[]): Block[] {
 
 /* ───────────── intent → parts ───────────── */
 
-function compose(message: string, ctx: PageContext, nlu: Nlu, local: Classification, activeJourney: boolean): Parts {
+function compose(message: string, ctx: PageContext, local: Classification, activeJourney: boolean): Parts {
+  const nlu: Nlu = local;
   const n = normalize(message);
   const chips = contextSuggestions(ctx.domain);
   const topic: TopicId | undefined = nlu.topic ?? detectTopic(n);
@@ -273,11 +274,6 @@ function compose(message: string, ctx: PageContext, nlu: Nlu, local: Classificat
 
 /* ───────────── public API ───────────── */
 
-export interface RespondOptions {
-  /** Optional AI classifier. Omit it and Mewvi runs fully on local rules. */
-  nlu?: NluFn;
-}
-
 function unique(xs: string[], max: number): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -292,37 +288,18 @@ function unique(xs: string[], max: number): string[] {
   return out;
 }
 
-export async function respond(input: RespondInput, opts: RespondOptions = {}): Promise<MewviReply> {
+/** The built-in, fully local reply path. It makes no network request and needs no key. */
+export async function respond(input: RespondInput): Promise<MewviReply> {
   const message = sanitizeMessage(typeof input.message === "string" ? input.message : "");
   const ctx = pageContext(input.pathname);
   const local = classify(message, ctx.domain);
 
-  let nlu: Nlu = local;
-  let engine: MewviReply["engine"] = "local";
-  let ai: AiStatus = opts.nlu ? "skipped" : "off";
-
-  // Danger is decided locally, always. A model is only consulted for vague, non-critical messages.
-  if (!local.danger && local.confidence < AI_THRESHOLD && opts.nlu) {
-    let out: Awaited<ReturnType<NluFn>>;
-    try {
-      out = await opts.nlu(message, ctx.pathname);
-    } catch {
-      out = { ok: false, reason: "unavailable" };
-    }
-    if (out.ok) {
-      nlu = { intent: out.nlu.intent, topic: out.nlu.topic ?? local.topic, target: out.nlu.target, wantsCall: out.nlu.wantsCall ?? local.wantsCall };
-      engine = "gemini";
-      ai = "ok";
-    } else {
-      ai = out.reason;
-    }
-  }
-
-  const parts = compose(message, ctx, nlu, local, Boolean(input.activeJourney));
+  // Danger and everything else is decided locally. No model is consulted on this path.
+  const parts = compose(message, ctx, local, Boolean(input.activeJourney));
   const draft: MewviReply = {
-    intent: nlu.intent,
-    engine,
-    ai,
+    intent: local.intent,
+    engine: "local",
+    ai: "off",
     urgent: parts.urgent,
     blocks: parts.blocks,
     confirmations: (parts.confirmations ?? []).slice(0, 2),

@@ -558,6 +558,27 @@ test("route: agent on with nothing configured still answers (V1) and says the AI
   assert.ok(helplineIds(emergency).includes("erss-112"), "emergency information never depends on the AI");
 }));
 
+test("route: a leftover Gemini variable changes nothing and no request leaves the server with the agent off", run(async () => {
+  // Simulates an old deployment that still has the retired variable set.
+  process.env.GEMINI_API_KEY = "legacy-key-that-must-be-ignored";
+  const realFetch = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = (async (url: unknown) => {
+    requested.push(String(url));
+    throw new Error("no outbound request is allowed here");
+  }) as unknown as typeof fetch;
+  try {
+    const r = (await (await post(JSON.stringify({ message: "xyz qwerty" }), "10.3.3.3")).json()) as MewviReply;
+    assert.equal(r.engine, "local");
+    assert.equal(r.ai, "off");
+    const s = (await (await statusGET(new Request("http://x/api/status"))).json()) as { assistant: Record<string, unknown> };
+    assert.ok(!("gemini" in s.assistant), "status no longer mentions Gemini");
+    assert.deepEqual(requested, []);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}));
+
 test("status: reports agent mode and configured provider ids, never keys", run(async () => {
   process.env.MEWVI_AGENT = "shadow";
   process.env.CF_ACCOUNT_ID = "e".repeat(32);

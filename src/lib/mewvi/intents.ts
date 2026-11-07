@@ -1,8 +1,7 @@
 // src/lib/mewvi/intents.ts
 //
 // Deterministic understanding. This is Mewvi's ground truth: it works with no
-// network and no AI key. When a Gemini key exists it may be consulted for
-// vague messages, but danger detection ALWAYS runs here first and can never
+// network and no AI key. Danger detection ALWAYS runs here first and can never
 // be downgraded by a model.
 import type { Domain } from "./context";
 import { contextBoost } from "./context";

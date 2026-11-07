@@ -62,7 +62,7 @@ as a placeholder — nothing is faked to look more finished than it is.
 |  **Guardian** | A read-only, token-gated view a trusted contact opens to follow a journey |
 |  **Community** | Community-submitted safety observations plotted on a safety map, moderation-ready |
 |  **Evidence Organizer** | On-device notes, files, and a timeline for an incident, exportable |
-|  **Mewvi** | A context-aware assistant present on every page — rule-based by default, optionally sharpened by Gemini, and never a general-purpose chatbot |
+|  **Mewvi** | A context-aware assistant present on every page — rule-based by default, with an optional free-provider AI agent that can only use approved in-app tools, and never a general-purpose chatbot |
 |  **Theming** | Light, dark, and system modes with persisted preference |
 
 ## Tech stack
@@ -70,7 +70,7 @@ as a placeholder — nothing is faked to look more finished than it is.
 - **Framework:** Next.js 14 (App Router) + TypeScript
 - **Styling:** Tailwind CSS
 - **Data:** Supabase/Postgres (optional — falls back to in-memory storage when unset)
-- **Integrations (all optional):** openrouteservice (routes), Resend (email alerts), Twilio (SMS alerts), Gemini (Mewvi's language layer)
+- **Integrations (all optional):** openrouteservice (routes), Resend (email alerts), Twilio (SMS alerts), Cloudflare Workers AI / Ollama Cloud (optional Mewvi agent)
 - **Deployment:** Vercel
 
 ## Architecture
@@ -106,7 +106,7 @@ flowchart TD
         ORS["openrouteservice<br/>(routing)"]
         Resend["Resend<br/>(email alerts)"]
         Twilio["Twilio<br/>(SMS alerts)"]
-        Gemini["Gemini<br/>(Mewvi language layer)"]
+        FreeAI["Cloudflare Workers AI / Ollama Cloud<br/>(optional Mewvi agent)"]
         OSM["OpenStreetMap<br/>(tiles + geocoding)"]
     end
 
@@ -115,7 +115,7 @@ flowchart TD
     UI --> WebAPIs
     RSC --> UI
     API --> Mewvi
-    Mewvi -.optional.-> Gemini
+    Mewvi -.optional.-> FreeAI
     API --> DB
     API -. DB unset .-> Mem
     API --> ORS
@@ -131,9 +131,9 @@ flowchart TD
 | **Client Components** (`"use client"`) | Anything interactive or device-facing — theme toggle, geolocation, the Mewvi panel, live tracking. Kept as small and low as possible in the tree; most of the app is server-rendered. |
 | **Server Components & layouts** | Route shells, metadata, and static content, rendered on the server for fast first paint and no client JS cost. |
 | **Route Handlers** (`src/app/api/**`) | The only code allowed to touch secrets (`src/lib/env.ts` → `serverEnv`) or the database. Every mutating route is rate-limited and validates its input with Zod. |
-| **Mewvi engine** (`src/lib/mewvi/**`) | Rule-based intent classification and a catalog of verified in-app answers by default; Gemini only ever *rewrites* an already-approved reply and is never given free rein to invent facts — see [`AI_SAFETY.md`](./AI_SAFETY.md). |
+| **Mewvi engine** (`src/lib/mewvi/**`) | Rule-based intent classification and a catalog of verified in-app answers by default; the optional agent can only pick from a fixed set of approved tools and never invents helplines, links or numbers — see [`AI_SAFETY.md`](./AI_SAFETY.md). |
 | **Data layer** | Supabase/Postgres when configured, with Row-Level Security and no public policies. With no database configured, the same API surface runs on an in-memory store so the whole app — including journeys and guardian tracking — still works end to end for a local demo. |
-| **External integrations** | openrouteservice, Resend, Twilio, Gemini, and OpenStreetMap. Each is read from `serverEnv`, feature-detected, and the UI states plainly when one isn't configured rather than pretending it is. |
+| **External integrations** | openrouteservice, Resend, Twilio, Cloudflare Workers AI / Ollama Cloud (optional), and OpenStreetMap. Each is read from `serverEnv`, feature-detected, and the UI states plainly when one isn't configured rather than pretending it is. |
 
 **Why one app instead of separate services:** a reviewer (or a
 first-time contributor) should be able to clone one repo, run one
