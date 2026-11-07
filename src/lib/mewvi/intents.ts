@@ -55,7 +55,7 @@ const devanagari = (raw: string) => raw.normalize("NFD").replace(/\u093C/g, "").
 
 const STRONG_DANGER: RegExp[] = [
   // "help me" is danger unless it is clearly a request for help *using the app*.
-  /\b(?:help me|save me|help help)\b(?! (?:to )?(?:find|use|with|understand|report|file|choose|pick|learn|know|figure|set|start|track|organi[sz]e|check|write|create|navigate|locate|open|call|contact)\b)/,
+  /\b(?:help me|save me|help help)\b(?! (?:to )?(?:find|use|with|understand|report|file|choose|pick|learn|know|figure|set|start|track|organi[sz]e|check|write|create|navigate|locate|open|call|contact|plan|prepare|prep|decide|draft|compare|review|get (?:ready|started|prepared|organi[sz]ed)|make (?:a|an|the|my) (?:plan|list|checklist|report|complaint|note))\b)/,
   /^(help|helpp+|sos|emergency|urgent|police)$/,
   /\bi(?:'m| am| feel)? (?:in (?:serious |real )?danger|not safe|being (?:attacked|assaulted|kidnapped|held|beaten|chased|threatened)|about to be (?:attacked|hurt))\b/,
   /\bbeing (?:attacked|assaulted|raped|molested|kidnapped|abducted|beaten)\b/,

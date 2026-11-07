@@ -440,9 +440,17 @@ export function MewviPanel({
                     .map((c) => (
                       <ConfirmCard key={c.id} c={c} onYes={onClose} onNo={() => dismiss(t.id, c.id)} />
                     ))}
-                  {t.reply.offline && <p className="text-[11px] text-muted">You seem to be offline, so I answered with the guidance built into this page.</p>}
+                  {t.reply.offline && (
+                    <p className="text-[11px] text-muted" role="status">
+                      {t.reply.fallback === "busy"
+                        ? "Mewvi is getting a lot of requests right now, so this answer comes from the guidance built into this page. You can try again in a minute."
+                        : t.reply.fallback === "server"
+                          ? "I couldn't get an answer from the server, so this answer comes from the guidance built into this page."
+                          : "You seem to be offline, so this answer comes from the guidance built into this page."}
+                    </p>
+                  )}
                   {!t.reply.offline && (t.reply.ai === "invalid_key" || t.reply.ai === "rate_limited" || t.reply.ai === "unavailable") && (
-                    <p className="text-[11px] text-muted">Smart matching is unavailable right now, so I used my built-in matching.</p>
+                    <p className="text-[11px] text-muted" role="status">The AI helper is unavailable right now, so this answer comes from Mewvi&apos;s built-in guidance.</p>
                   )}
                   {t === lastMewvi && needsRetry && !busy && lastUser?.text && (
                     <div className="flex flex-wrap items-center gap-3 text-xs">

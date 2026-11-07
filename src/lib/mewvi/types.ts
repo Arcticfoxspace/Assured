@@ -142,6 +142,8 @@ export interface MewviReply {
   suggestions: string[];
   /** Set by the browser when the server couldn't be reached and the built-in logic answered. */
   offline?: boolean;
+  /** Why the browser answered itself (set together with `offline`): no connection, server busy (HTTP 429), or any other server problem. */
+  fallback?: "network" | "busy" | "server";
 }
 
 export interface RespondInput {

@@ -617,6 +617,26 @@ test("client: a malformed server reply falls back to the on-device rules; missin
   }
 });
 
+test("client: the reason for a fallback is reported honestly (offline vs busy vs server problem)", async () => {
+  const realFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = (async () => { throw new TypeError("Failed to fetch"); }) as typeof fetch;
+    assert.equal((await askMewvi({ message: "hi" })).fallback, "network");
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 })) as typeof fetch;
+    const busy = await askMewvi({ message: "hi" });
+    assert.equal(busy.fallback, "busy");
+    assert.equal(busy.offline, true, "still answered on the device");
+    globalThis.fetch = (async () => new Response("oops", { status: 500 })) as typeof fetch;
+    assert.equal((await askMewvi({ message: "hi" })).fallback, "server");
+    globalThis.fetch = (async () => new Response(JSON.stringify({ nonsense: true }), { status: 200 })) as typeof fetch;
+    assert.equal((await askMewvi({ message: "hi" })).fallback, "server");
+    globalThis.fetch = (async () => { throw new DOMException("aborted", "AbortError"); }) as typeof fetch;
+    assert.equal((await askMewvi({ message: "hi" })).fallback, "server", "a timeout is not proof of being offline");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 /* ───────── schema is the single source of truth for tools ───────── */
 
 test("schema: every registered tool has a plan step, and the planner prompt lists exactly the registry", () => {

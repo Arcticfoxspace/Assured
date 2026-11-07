@@ -19,6 +19,8 @@ function normalizeReply(data: unknown): MewviReply | undefined {
 export async function askMewvi(input: RespondInput): Promise<MewviReply> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 7000);
+  // Why the server's answer was not used. A timeout or a bad reply is a server problem, not proof the device is offline.
+  let fallback: NonNullable<MewviReply["fallback"]> = "network";
   try {
     const res = await fetch("/api/mewvi", {
       method: "POST",
@@ -26,13 +28,20 @@ export async function askMewvi(input: RespondInput): Promise<MewviReply> {
       body: JSON.stringify(input),
       signal: ctrl.signal,
     });
-    if (!res.ok) throw new Error("bad_status");
+    if (!res.ok) {
+      fallback = res.status === 429 ? "busy" : "server";
+      throw new Error("bad_status");
+    }
     const data = normalizeReply(await res.json());
-    if (!data) throw new Error("bad_shape");
+    if (!data) {
+      fallback = "server";
+      throw new Error("bad_shape");
+    }
     return data;
-  } catch {
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") fallback = "server";
     const local = await respond(input);
-    return { ...local, offline: true };
+    return { ...local, offline: true, fallback };
   } finally {
     clearTimeout(timer);
   }

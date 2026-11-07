@@ -260,6 +260,16 @@ function compose(message: string, ctx: PageContext, local: Classification, activ
   }
 
   const injection = /\b(ignore|system prompt|jailbreak|pretend|you are now|disregard|developer mode|reveal)\b/.test(n);
+  // A Devanagari message that matched nothing must not dead-end: point to the verified pages (the danger check already ran).
+  if (!injection && /[\u0900-\u097F]/.test(message)) {
+    return {
+      blocks: [
+        text("I can't read Hindi well enough to answer yet, so I'm not sure what you asked. These pages are written in simple English and may help:"),
+        linkBlock(routeLink("emergency"), routeLink("helplines")),
+      ],
+      suggestions: chips,
+    };
+  }
   return {
     blocks: [
       text(

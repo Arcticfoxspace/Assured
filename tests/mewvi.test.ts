@@ -252,6 +252,29 @@ test("emergency: danger is decided locally, and questions about numbers are not 
   }
 });
 
+test("emergency: planning and preparing requests are not emergencies, but real pleas still are", async () => {
+  for (const message of ["can you help me plan something", "help me get ready for a night out", "help me prepare a report", "help me draft a complaint", "help me make a plan for my commute"]) {
+    const r = await respond({ message });
+    assert.ok(!r.urgent, message);
+    assert.notEqual(r.intent, "emergency_danger", message);
+  }
+  // Guard: nearby real pleas stay urgent. A missed plea costs more than a false 112 screen.
+  for (const message of ["help me", "help me get out of here", "help me please", "help me escape", "help me, someone is following me", "save me"]) {
+    const r = await respond({ message });
+    assert.equal(r.urgent, true, message);
+  }
+});
+
+test("unrecognised Devanagari text gets links to the verified pages instead of a dead end", async () => {
+  const r = await respond({ message: "मुझे हेल्पलाइन नंबर चाहिए" });
+  assert.ok(!r.urgent);
+  assert.ok(hrefs(r).includes("/emergency") && hrefs(r).includes("/helplines"));
+  assert.ok(!JSON.stringify(r).includes("tel:"));
+  // Danger in Devanagari still wins.
+  const danger = await respond({ message: "मुझे बचाओ" });
+  assert.equal(danger.urgent, true);
+});
+
 test("self-harm: supportive reply with Tele MANAS and 112, no dismissal", async () => {
   const r = await respond({ message: "I want to die" });
   assert.equal(r.intent, "mental_health");
