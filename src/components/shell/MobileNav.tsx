@@ -25,7 +25,7 @@ export function MobileNav() {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -36,7 +36,7 @@ export function MobileNav() {
         aria-modal="true"
         aria-label="More ASSURED pages"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-border/70 bg-surface md:hidden",
+          "fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-border/70 bg-surface lg:hidden",
           "transition-transform duration-200",
           open ? "translate-y-0" : "translate-y-full pointer-events-none"
         )}
@@ -81,7 +81,7 @@ export function MobileNav() {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-surface/90 backdrop-blur-lg md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-surface/90 backdrop-blur-lg lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <ul className="grid grid-cols-5">

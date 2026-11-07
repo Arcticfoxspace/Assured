@@ -43,7 +43,7 @@ export function MewviLauncher() {
           aria-label="Open Mewvi assistant"
           className={cn(
             "fixed z-40 flex items-center justify-center rounded-full border border-border bg-surface shadow-card transition-all duration-200 ease-calm hover:-translate-y-0.5 hover:shadow-soft-hover active:translate-y-0",
-            clearBottom ? "right-3 top-3 p-1 opacity-80 md:top-20" : "bottom-20 right-4 p-1.5 md:bottom-6"
+            clearBottom ? "right-3 top-3 p-1 opacity-80 lg:top-20" : "bottom-20 right-4 p-1.5 lg:bottom-6"
           )}
         >
           <MewviAvatar size={clearBottom ? 30 : 40} online />

@@ -11,7 +11,7 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 hidden border-b border-border/70 bg-surface/75 backdrop-blur-lg md:block">
+    <header className="sticky top-0 z-40 hidden border-b border-border/70 bg-surface/75 backdrop-blur-lg lg:block">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Logo size={26} />
