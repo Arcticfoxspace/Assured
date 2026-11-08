@@ -329,7 +329,10 @@ export function MewviPanel({
     const coarsePointer = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
     if (!coarsePointer) inputRef.current?.focus();
   }, []);
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [turns, busy]);
+  useEffect(() => {
+    // Braces matter: newer browsers return a Promise from scrollIntoView, and an effect must not return one.
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [turns, busy]);
 
   /** `retry` re-asks the last question in place (no duplicate user bubble) after an unavailable/offline answer. */
   async function send(raw: string, retry = false) {
@@ -386,7 +389,7 @@ export function MewviPanel({
         role="dialog"
         aria-modal="true"
         aria-label="Mewvi assistant"
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85vh] w-full max-w-md animate-panel-in flex-col rounded-t-2xl border border-border bg-surface shadow-soft-hover sm:bottom-6 sm:left-auto sm:right-6 sm:rounded-2xl"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85dvh] w-full max-w-md animate-panel-in flex-col rounded-t-2xl border border-border bg-surface shadow-soft-hover sm:bottom-6 sm:left-auto sm:right-6 sm:rounded-2xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="flex items-center justify-between rounded-t-2xl border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent px-4 py-3">

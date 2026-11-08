@@ -55,7 +55,7 @@ export function MobileNav() {
             </button>
           </div>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-4 py-3">
+        <div className="max-h-[70dvh] overflow-y-auto px-4 py-3">
           {navGroups.map((group) => (
             <div key={group.id} className="mb-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
