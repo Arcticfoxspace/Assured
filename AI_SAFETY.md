@@ -57,7 +57,7 @@ The same `respond()` runs on the server and in the browser, so Mewvi still answe
 - The only device state Mewvi is told is whether a journey is active (a yes/no). It never receives a location.
 - Evidence Organizer data (notes, files) stays in the browser (localStorage / IndexedDB) and is never uploaded. The scam-call helper analyses text on the device.
 - Rate limit: 40 Mewvi requests per minute per IP (best effort; see `rateLimit.ts`). Request bodies over 4096 characters are refused.
-- If the agent's free providers are used, the provider receives the masked message described above (names and addresses are masked only by the cues listed there; a name or address written any other way is NOT removed) and applies its own terms.
+- If the agent's free providers are used, the provider receives the masked message described above (names and addresses are masked only by the cues listed there; a name or address written any other way is NOT removed) and applies its own terms. When the agent produced an answer, the panel says so on screen: "This answer used an AI helper. Names and addresses are masked only in some cases and are not guaranteed to be removed."
 
 ## Agent mode (optional, OFF by default)
 Set `MEWVI_AGENT=on` (or `shadow`) to let a free hosted model *plan* which approved tools to run for vague, non-sensitive messages. With the variable unset, Mewvi behaves exactly as described above.
@@ -117,11 +117,13 @@ Any failure at any step returns the V1 reply. The model never writes text, numbe
 | Hallucination prevention | "guard: forged…", "every number Mewvi shows…", "unknown station or email…", "stays inside ASSURED…" |
 | Emergency guidance | "emergency: …", "self-harm: …", "guidance flows…", "scenario messages…" |
 | Mewvi across routes | "Mewvi answers … on every ASSURED page", "context: …" |
+| Hindi / Hinglish / Devanagari danger and self-harm (`tests/hinglish.test.ts`) | "U1 …", "U1b …", "U1c …", "U2 …": pleas, methods, variant verb forms, harmless look-alikes, film/task talk, "bachao + number" stays a plea, Hinglish fear in a cab |
+| Honest fallback reason | "client: the reason for a fallback is reported honestly…" |
 
-**Status:** run `npm test`; CI (`.github/workflows/ci.yml`) does so too. Browser and device behaviour (panel layout, keyboard, copy button, Android/Windows/iPhone) is **not** covered by these tests and needs manual checking.
+**Status:** run `npm test`; CI (`.github/workflows/ci.yml`) does so too. Browser behaviour is **not** covered by these unit tests. `scripts/browser-smoke/` (Python + Playwright, Chromium, optional) repeats the route sweep at four widths, the Mewvi panel flow, keyboard focus and text contrast; see its README. Real Android, iPhone, Safari, Firefox and Windows devices still need manual checking.
 
 ## Known limits
-- Local matching is keyword/pattern based English. Hindi and Hinglish danger phrases are also matched, but that list has not been reviewed by a native speaker (see `docs/U1_HINGLISH_DANGER.md`). Unusual phrasing may fall through to "outside what I can help with"; with the optional agent enabled, vague non-sensitive messages get a second chance.
+- Local matching is keyword/pattern based. Hindi, Hinglish and Devanagari danger and self-harm phrases are matched too. The lists were reviewed line by line and probe-tested (76 messages) in session 6, but a native Hindi/Hinglish speaker has not signed them off (see `docs/U1_HINGLISH_DANGER.md`). Other languages (Punjabi, Tamil, Rajasthani, ...) are not covered. Unusual spellings or phrasing may fall through to "outside what I can help with", and a Devanagari message that matches nothing gets links to the Emergency and Helplines pages.
 - Guidance is general safety information, not a substitute for professional or official help.
 - Re-verify the helpline data (`sources.json`) before a public launch, as numbers change.
 

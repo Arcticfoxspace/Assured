@@ -26,9 +26,32 @@ const SELF_HARM =
 // Over-matching is the safe side here (it shows the 112 flow); missing a plea is not.
 const HINGLISH_SELF_HARM =
   /\b(?:mar(?:na|ne|\s?jana|\s?jaun[gi]?|\s?jau)\s+(?:chah\w*|hai|mann)|marne ka (?:mann|man|dil)|jeena nahi chah\w*|jeene ka (?:mann|man|dil) nahi|jeene ki (?:iccha|ichha) nahi|zindagi (?:khatam|se thak|nahi jeen\w*)|jaan de (?:dun|doon|dena)|apni jaan|khud ?kh?ushi|khud ?kushi|atmahatya|aatmahatya|aatm ?hatya|sab khatam kar|marne ke liye|mar\s?ja(?:un|aun|oon)|khud ko (?:khatam|maar)|goli(?:yan)? kha (?:li|liya|lunga|lungi)|jeene ki (?:koi )?wajah|koi wajah nahi jeene|nahi jee (?:sakta|sakti|paunga|paungi)|jeene ka koi (?:fayda|matlab|mtlb|point) nahi|mar\s?jaung[ai])\b/;
+// U2 (session 6): extra self-harm wording found missing in review: methods (hanging, jumping, poison, cutting),
+// female/variant verb forms, "better to die". Matched on normalised text.
+const HINGLISH_SELF_HARM_U2: RegExp[] = [
+  /\bmar\s?(?:hi\s?)?jaa+[uo]\w*\b/,
+  /\bmar(?:na|\s?jana)\s+(?:hi\s+)?(?:behtar|better|accha|acha|theek)\b/,
+  /\bmar\s?hi\s?jat[ai]\b/,
+  /\b(?:ph|f)aa?nsi\s+(?:laga|le|lag)\w*\b/,
+  /\b(?:pankhe|pankha|chhat|ceiling)\s+se\s+latak\w*\b|\blatak\s+(?:jaun|jaaun|kar jaan|ke jaan)\w*\b/,
+  /\b(?:chhat|chat|chhath|building|pul|bridge|balcony|terrace)\s+se\s+(?:kud|kood|koodna|chhalang|chalang)\w*\b/,
+  /\b(?:zeher|zehar|jehar|jahar|vish|poison)\s+(?:kha|khaa|pee|pi|le)\w*\b/,
+  /\b(?:nas|nass|kalai)\b.{0,10}\bkaat\w*\b|\bhaa?th\b.{0,12}\bkaat\w*\b/,
+  /\btrain\s+(?:ke|ki)\s+(?:aage|neeche|niche|saamne)\s+(?:kud|aa|let|lait|jaa)\w*\b/,
+  // "jaan de dunga" is also a filmy love phrase ("tere liye jaan de dunga"): skip it when "liye" is present.
+  /^(?!.*\bliye\b).*\bjaan\s+(?:dene|de\s?dun\w*|de\s?doon\w*|de\s?dena)\b/,
+];
+// "bachao" is a plea unless the message is clearly about a film or song.
+const HINGLISH_BACHAO = /\b(?:bachao|bachaao|bachaoo+|bacha lo|bachalo|bachayiye|bachaiye|mujhe bacha(?!ya\b|yi\b|ye\b|aya\b)\w*)\b/;
+const MEDIA_TALK = /\b(?:movie|film|song|gaana|gana|series|serial|cinema|trailer)\b/;
+// "madad karo" is a plea unless the person is asking for help doing something in the app or with a task.
+const HINGLISH_ASK_HELP = /\b(?:meri madad karo|madad karo|madad kijiye|help karo|jaldi madad|turant madad)\b/;
+const TASK_TALK = /\b(?:resume|cv|form|app|website|bharna|bharni|bharne|likhna|likhne|banana|banane|samajh\w*|dhundh\w*|dhund\w*|batao|bataiye|number|helpline|report|complaint|plan|movie|film|song)\b/;
 const HINGLISH_DANGER: RegExp[] = [
-  /\b(?:bachao|bachaao|bachaoo+|bacha lo|bachalo|bachayiye|bachaiye|mujhe bacha(?!ya\b|yi\b|ye\b|aya\b)\w*)\b/,
-  /\b(?:meri madad karo|madad karo|madad kijiye|help karo|jaldi madad|turant madad)\b/,
+  // U2 (session 6): physical violence wording found missing in review.
+  /\bhaa?th\s+uth(?:a|at|ay)\w*\b/,
+  /\b(?:mujhe|mujh|mere|hume|humein|usne|unhone)\b.{0,15}\bdhakk?a\b/,
+  /\b\w+\s+ne\s+(?:mujhe\s+)?dhakk?a\s+(?:diya|di|de|mara|maara)\b/,
   /\b(?:maar|maarne|maarna|maarenge|maardega|maar dega|maar dalega|maar dalenge|maar rahe|maar raha|maar rahi|peet raha|peet rahe|peet rahi|pit raha|pit rahe)\b.{0,25}\b(?:hai|hain|hu|hun|hoon|wala|wale|rahe|raha|rahi|dega|denge|dalega|dalenge|mujhe|humein|hume)\b/,
   /\b(?:mujhe|hume|humein|mere? (?:ko|saath))\b.{0,20}\b(?:maar|peet|kidnap|pakad|chhed|ched|dhamk|utha)\w*\b/,
   /\b(?:jaan se maar\w*|utha (?:ke|kar) le (?:ja|gaye|gaya)\w*|zabardasti|chhed ?chhad|ched ?chad|balatkar)\b/,
@@ -48,8 +71,11 @@ const HINGLISH_DANGER: RegExp[] = [
 // Tested on raw text after NFD + nukta removal (see devanagari()), so patterns carry no nukta (ज़ -> ज).
 const DEVANAGARI_SELF_HARM =
   /(?:मरना चाह|मर जाना चाह|मर जा[ऊउ][ंँ]?|जीना नहीं चाह|जीने का मन नहीं|जीने की (?:वजह|इच्छा)|आत्महत्या|खुदकुशी|खुदकशी|खुद को (?:खत्म|मार)|जि[ंन]्?दगी (?:खत्म|से थक)|जान दे |जान ले ?लू|जीने का (?:कोई )?(?:मतलब|फायदा) नहीं)/;
+// U2 (session 6): methods and variants found missing in review (nukta-free: ज़हर is matched as जहर).
+const DEVANAGARI_SELF_HARM_U2 =
+  /(?:फा[ंँ]?सी (?:लगा|ले|लग)|(?:छत|बिल्डिंग|पुल|बालकनी|छत्त) से (?:कूद|छलांग)|जहर (?:खा|पी|ले)|नस (?:काट|कट)|हाथ.{0,8}काट|मर जाना (?:बेहतर|ठीक)|जान देने)/;
 const DEVANAGARI_DANGER =
-  /(?:बचाओ|बचा लो|बचा लीजिए|मदद करो|मदद कीजिए|मदद चाहिए|मेरी मदद|मार रहा|मार रहे|मार रही|मुझे मार|मार (?:देगा|दूं|डाल)|मारने|जान से मार|जान खतरे|अपहरण|किडनैप|बलात्कार|छेड़|छेड|चाकू|बंदूक|पीछा कर|पीछे .{0,12}पड|पीट रहा|पीट रही|पीट रहे|धमक|उठा (?:ले|कर|रहा|रहे)|पुलिस (?:को )?बुला|घेर लिया)/;
+  /(?:हाथ उठा|धक्का (?:दिया|दे रहा|दे रही|मारा)|बचाओ|बचा लो|बचा लीजिए|मदद करो|मदद कीजिए|मदद चाहिए|मेरी मदद|मार रहा|मार रहे|मार रही|मुझे मार|मार (?:देगा|दूं|डाल)|मारने|जान से मार|जान खतरे|अपहरण|किडनैप|बलात्कार|छेड़|छेड|चाकू|बंदूक|पीछा कर|पीछे .{0,12}पड|पीट रहा|पीट रही|पीट रहे|धमक|उठा (?:ले|कर|रहा|रहे)|पुलिस (?:को )?बुला|घेर लिया)/;
 /** Raw text folded so precomposed (ज़) and decomposed (ज + nukta) input both match; normalize() drops non-Latin. */
 const devanagari = (raw: string) => raw.normalize("NFD").replace(/\u093C/g, "").normalize("NFC");
 
@@ -81,11 +107,13 @@ const MEDICAL = /\b(medical emergency|heart attack|unconscious|not breathing|ove
 export const isMedical = (n: string) => MEDICAL.test(n);
 
 export function detectDanger(n: string, raw?: string): DangerKind | undefined {
-  if (SELF_HARM.test(n) || HINGLISH_SELF_HARM.test(n)) return "self-harm";
-  if (raw && DEVANAGARI_SELF_HARM.test(devanagari(raw))) return "self-harm";
+  if (SELF_HARM.test(n) || HINGLISH_SELF_HARM.test(n) || HINGLISH_SELF_HARM_U2.some((r) => r.test(n))) return "self-harm";
+  if (raw && (DEVANAGARI_SELF_HARM.test(devanagari(raw)) || DEVANAGARI_SELF_HARM_U2.test(devanagari(raw)))) return "self-harm";
   if (raw && DEVANAGARI_DANGER.test(devanagari(raw))) return "danger";
   // Hinglish pleas are not subject to the past-tense softening below: a missed plea costs more than a false 112 screen.
   if (HINGLISH_DANGER.some((r) => r.test(n))) return "danger";
+  if (HINGLISH_BACHAO.test(n) && !MEDIA_TALK.test(n)) return "danger";
+  if (HINGLISH_ASK_HELP.test(n) && !TASK_TALK.test(n)) return "danger";
   const pastOnly = PAST.test(n) && !PRESENT.test(n);
   if (PLEA.test(n)) return "danger";
   if (STRONG_DANGER.some((r) => r.test(n)) && !pastOnly) return "danger";
@@ -106,8 +134,8 @@ const ONLINE_NOUN =
   "online|instagram|facebook|whatsapp|snapchat|social media|dms?|twitter|telegram|internet|email|comments?|chat|reddit|youtube";
 const ONLINE_VERB = "threat\\w*|harass\\w*|abus\\w*|blackmail\\w*|bull(?:y|ied|ying)|troll\\w*|stalk\\w*|sextort\\w*|insult\\w*";
 const MONEY = "upi|paytm|gpay|google pay|phonepe|bank|card|otp|money|payment|transaction|rupees|account|loan|investment|crypto|wallet|kyc";
-const TRANSPORT = "cab|taxi|uber|ola|rapido|auto|rickshaw|bus|train|metro|driver|ride|carpool|vehicle|car";
-const FEAR = "unsafe|scared|uncomfortable|creepy|threatened|threatening|nervous|afraid|suspicious|drunk|wrong route|different route|won'?t stop|not stopping|locked";
+const TRANSPORT = "cab|taxi|uber|ola|rapido|auto|rickshaw|bus|train|metro|driver|ride|carpool|vehicle|car|gaadi|gadi|auto wala|cab wala|taxi wala|rickshaw wala";
+const FEAR = "unsafe|scared|uncomfortable|creepy|threatened|threatening|nervous|afraid|suspicious|drunk|wrong route|different route|won'?t stop|not stopping|locked|darr lag\\w*|dar lag\\w*|darr raha|dar raha|darr gayi|asurakshit|galat raste|galat rasta|alag raste|nahi ruk\\w*";
 
 const RULES: Rule[] = [
   {
@@ -335,6 +363,8 @@ const RULES: Rule[] = [
       /\b(deserted|isolated|empty (?:road|street|lane|station|stop)|dark (?:road|street|lane|area|alley)|alone at night|walking alone|new (?:city|town|place))\b/,
       /\b(feel|feeling|feels) (?:unsafe|scared|nervous|uneasy|uncomfortable|afraid|threatened)\b/,
       /\b(unsafe|not safe) (?:here|around here|where i am|in this (?:place|area))\b/,
+      // Hinglish fear and being lost (session 6). The reply is the same calm "unfamiliar place" guidance, not the 112 screen.
+      /\b(?:darr?\s+lag\w*|dar\s+raha|darr\s+raha|asurakshit|rasta\s+bhool\w*|raasta\s+bhool\w*|sunsaan|akel[ai]\s+hu\w*)\b/,
     ],
     weak: [/\b(unsafe|scared|nervous|uneasy|afraid)\b/],
   },

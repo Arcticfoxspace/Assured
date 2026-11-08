@@ -13,7 +13,7 @@
   --color-surface-2: 237 243 235;
   --color-border: 226 232 222;
   --color-fg: 39 51 48;
-  --color-muted: 109 121 115;
+  --color-muted: 90 101 95; /* was 109 121 115: 4.1-4.5:1 on cream/sage surfaces, below WCAG AA 4.5:1 */
   --color-primary: 82 116 97;
   --color-primary-fg: 250 250 246;
   --color-emergency: 178 58 48;
@@ -30,10 +30,10 @@
   --color-surface-2: 38 56 46;
   --color-border: 51 63 56;
   --color-fg: 237 241 235;
-  --color-muted: 172 183 173;
+  --color-muted: 184 194 185; /* was 172 183 173: 4.46:1 on the darkest tinted surface */
   --color-primary: 156 190 164;
   --color-primary-fg: 20 26 23;
-  --color-emergency: 239 107 98;
+  --color-emergency: 243 116 107;
   --color-emergency-fg: 33 12 10;
   --color-safe: 150 205 168;
   --color-accent: 223 167 166;

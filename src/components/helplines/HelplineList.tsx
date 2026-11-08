@@ -19,7 +19,7 @@ export function HelplineList({ helplines }: { helplines: Helpline[] }) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5">
+      <label className="flex cursor-text items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/40">
         <Search className="h-4 w-4 text-muted" aria-hidden="true" />
         <input
           value={query}
@@ -28,15 +28,16 @@ export function HelplineList({ helplines }: { helplines: Helpline[] }) {
           className="w-full bg-transparent text-sm outline-none"
           aria-label="Search helplines"
         />
-      </div>
+      </label>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
         <button
           onClick={() => setCategory(undefined)}
+          aria-pressed={!category}
           className={cn(
             "rounded-full border px-3 py-1.5 text-xs font-medium",
             !category
-              ? "border-primary bg-primary/10 text-primary"
+              ? "border-primary bg-primary/10 text-safe"
               : "border-border text-muted hover:text-foreground"
           )}
         >
@@ -46,10 +47,11 @@ export function HelplineList({ helplines }: { helplines: Helpline[] }) {
           <button
             key={c}
             onClick={() => setCategory(c === category ? undefined : c)}
+            aria-pressed={category === c}
             className={cn(
               "rounded-full border px-3 py-1.5 text-xs font-medium capitalize",
               category === c
-                ? "border-primary bg-primary/10 text-primary"
+                ? "border-primary bg-primary/10 text-safe"
                 : "border-border text-muted hover:text-foreground"
             )}
           >

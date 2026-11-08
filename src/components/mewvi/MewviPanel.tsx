@@ -452,6 +452,11 @@ export function MewviPanel({
                           : "You seem to be offline, so this answer comes from the guidance built into this page."}
                     </p>
                   )}
+                  {t.reply.engine === "agent" && (
+                    <p className="text-[11px] text-muted">
+                      This answer used an AI helper. Names and addresses are masked only in some cases and are not guaranteed to be removed.
+                    </p>
+                  )}
                   {!t.reply.offline && (t.reply.ai === "invalid_key" || t.reply.ai === "rate_limited" || t.reply.ai === "unavailable") && (
                     <p className="text-[11px] text-muted" role="status">The AI helper is unavailable right now, so this answer comes from Mewvi&apos;s built-in guidance.</p>
                   )}

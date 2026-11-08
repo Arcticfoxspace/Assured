@@ -10,7 +10,7 @@ export function Breadcrumbs({ routeId }: { routeId: string }) {
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted">
-      <Link href="/" className="hover:text-foreground">
+      <Link href="/" className="-my-1 inline-block py-1 hover:text-foreground">
         Home
       </Link>
       {group && (

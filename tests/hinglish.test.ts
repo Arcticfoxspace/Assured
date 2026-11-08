@@ -95,3 +95,74 @@ test("U1c: extra self-harm phrasings", () => {
 test("U1c: nearby harmless messages stay out of the danger flows", () => {
   for (const m of u1cStillSafe) assert.equal(classify(m, "home").danger, undefined, m);
 });
+
+// U2 (session 6): wording found missing when the lists were reviewed line by line.
+const u2Danger = [
+  "usne mujhe dhakka diya",
+  "pati mujh par haath uthata hai",
+  "पति मुझे धक्का दे रहा है",
+  "वो मुझ पर हाथ उठाता है",
+];
+const u2SelfHarm = [
+  "ab main mar jaaunga",
+  "main jaan de dungi",
+  "jaan dene ka mann hai",
+  "main phansi laga lunga",
+  "main fansi le lunga",
+  "pankhe se latak jaunga",
+  "main chhat se kud jaunga",
+  "main zeher kha lunga",
+  "hath ki nas kaat lunga",
+  "mar jana behtar hai",
+  "train ke aage kud jaunga",
+  "मैं फांसी लगा लूंगा",
+  "मैं छत से कूद जाऊंगा",
+  "ज़हर खा लूंगी",
+  "मैं नस काट लूंगा",
+  "मर जाना बेहतर है",
+];
+const u2Harmless = [
+  "tere liye jaan de dunga",
+  "help karo mujhe form bharna hai",
+  "mujhe resume banane mein madad karo",
+  "madad karo mujhe app samajhna hai",
+  "bachao movie dekhi kal",
+  "phansi ki saza kya hoti hai",
+  "kal maine film mein phansi ka scene dekha",
+  "zeher ke baare mein jaankari chahiye",
+  "mujhe chhat par kapde sukhane hain",
+  "gaadi ka number batao",
+  "नदी पर पुल है",
+  "मेरा फोन खो गया",
+];
+test("U2: violence wording (dhakka, haath uthana) is danger, in Hinglish and Devanagari", () => {
+  for (const m of u2Danger) assert.equal(classify(m, "home").intent, "emergency_danger", m);
+});
+test("U2: self-harm methods and variant verb forms go to the support flow and never to a model", () => {
+  for (const m of u2SelfHarm) {
+    assert.equal(classify(m, "home").intent, "mental_health", m);
+    assert.equal(agentGate(normalize(m), classify(m, "home"), m).use, false, m);
+  }
+});
+test("U2: nearby harmless messages do not trigger the danger flows", () => {
+  for (const m of u2Harmless) assert.equal(classify(m, "home").danger, undefined, m);
+});
+test("U2: a plea that mentions a number is still a plea (only film or task talk is excluded)", () => {
+  for (const m of ["bachao police ka number do", "bachao mujhe koi maar raha hai, number batao"]) {
+    assert.equal(classify(m, "home").intent, "emergency_danger", m);
+  }
+});
+test("U2: Hinglish fear in a cab or auto reaches the unsafe-transport flow", () => {
+  for (const m of ["auto wala galat raste le ja raha hai darr lag raha hai", "cab driver nahi ruk raha mujhe dar lag raha hai"]) {
+    assert.equal(classify(m, "home").intent, "flow_unsafe_transport", m);
+  }
+});
+test("U2: 'someone pushed and hit me' is danger; plain fear gets calm guidance, not the 112 screen and not a dead end", () => {
+  assert.equal(classify("bhai ne dhakka diya aur maara", "home").intent, "emergency_danger");
+  for (const m of ["mujhe darr lag raha hai", "mujhe darr lag raha hai akela hu", "mujhe asurakshit mehsoos ho raha hai"]) {
+    const c = classify(m, "home");
+    assert.equal(c.danger, undefined, m);
+    assert.equal(c.intent, "flow_unfamiliar_location", m);
+  }
+  assert.equal(classify("gaadi ko dhakka de do", "home").danger, undefined);
+});

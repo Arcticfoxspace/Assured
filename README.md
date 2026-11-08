@@ -194,7 +194,7 @@ tells you in-settings exactly which ones are missing.
 ```bash
 npm run build    # production build
 npm run lint     # lint
-npm test         # test suite
+npm test         # test suite (unit); optional browser checks: scripts/browser-smoke/README.md
 ```
 
 ## Environment variables

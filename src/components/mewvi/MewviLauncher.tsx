@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MewviPanel, type MewviTurn } from "@/components/mewvi/MewviPanel";
 import { MewviErrorBoundary } from "@/components/mewvi/MewviErrorBoundary";
@@ -26,6 +26,14 @@ export function MewviLauncher() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Return focus to the launcher when the panel closes, so keyboard and screen-reader users are not dropped at the top of the page.
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) launcherRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
   const clearBottom = CLEAR_BOTTOM_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 
   return (
@@ -37,6 +45,7 @@ export function MewviLauncher() {
       )}
       {!open && (
         <button
+          ref={launcherRef}
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
